@@ -1,0 +1,78 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: Requirements
+
+# PO役は設計者が代行(00-charter.md Limitation)。
+# 根拠精度の規律: rationale は受入の深さ・許容差が決まる精度まで書く(G1)。
+
+requirements:
+  - id: REQ-001
+    statement: 蔵書には部数(copies)があり、貸出可能部数(copies - 返却されていない貸出数)が 0 の蔵書は貸し出せない。
+    rationale: 物理本の貸出。同一蔵書の同時貸出は部数まで。拒否は HTTP 409 で機械可読なエラーコードを返す(窓口システムが分岐するため)。
+    rationale_precision: ok
+    classification_hint: core
+    counterexamples:
+      - 部数2の蔵書に3件目の貸出が通る
+      - 返却済み貸出が貸出中として数えられ、貸せるのに拒否する
+
+  - id: REQ-002
+    statement: 会員は同時に最大3冊まで借りられる。4冊目の貸出要求は拒否する。
+    rationale: 紛失リスク管理。上限は会員一律3(将来は会員区分で変える可能性=forward-01.5 ECO 候補)。「同時に」=返却されていない貸出の数。境界: 3冊目は成功、4冊目で拒否。
+    rationale_precision: ok
+    classification_hint: core
+    counterexamples:
+      - 返却済みを数えて3冊未満なのに拒否する
+      - 別会員の貸出を数えて拒否する
+
+  - id: REQ-003
+    statement: 貸出期限は貸出日(UTC 暦日)の14日後の暦日。返却が期限日を過ぎた場合、延滞料金 = 延滞日数 × 100(整数円)を返却応答で返す。期限日当日の返却は延滞ではない。
+    rationale: 延滞判定は時刻でなく UTC 暦日の比較(開館時間に依存させない)。延滞日数 = 返却日(UTC暦日) - 期限日(UTC暦日)の日数差(正のときのみ)。金額は整数演算のみで丸めは発生しない。境界が受入の核心: 期限日 23:59:59Z 返却 = 0円 / 期限翌日 00:00:00Z 返却 = 100円。
+    rationale_precision: ok
+    classification_hint: core
+    counterexamples:
+      - 14×24時間で判定して期限日深夜の返却に課金する
+      - 月またぎ(1/31貸出→期限2/14)の暦日計算を誤る
+
+  - id: REQ-004
+    statement: 期限超過の未返却貸出を1件でも持つ会員には、新規貸出をしない。
+    rationale: 延滞抑止。判定時点 = 新規貸出要求の loanedAtUtc(UTC暦日)。その暦日が既存貸出の期限日より後なら延滞中。拒否は 409 + 機械可読コード。
+    rationale_precision: ok
+    classification_hint: core
+    counterexamples:
+      - 期限日当日(まだ延滞でない)の会員をブロックする
+      - 返却済みの過去延滞でブロックする
+
+  - id: REQ-005
+    statement: 蔵書・会員・貸出のデータは、API プロセスを再起動しても保持される。
+    rationale: 図書館の台帳。検査は execution(L3): データ投入→プロセス停止→再起動→投入済みデータが API から取得できること。保存先はファイル(SQLite)で、置き場所は環境変数で差し替え可能(検査治具の要請)。
+    rationale_precision: ok
+    classification_hint: core        # 「再起動後も残る」は要求由来。SQLite の方言・配置は表面(K-BOM)
+    external_source: SQLite(表面分は K-BOM へ)
+    counterexamples:
+      - in-memory 実装でテスト緑(再起動検査が無いと捕捉できない)
+      - DB ファイルパスがハードコードされ並行検査が衝突する
+
+  - id: REQ-006
+    statement: 利用者は HTTP API として 蔵書登録・蔵書取得・会員登録・貸出・返却・会員別貸出一覧 を行える。貸出・返却の発生時刻はリクエストが明示的に持つ(loanedAtUtc / returnedAtUtc、literal-Z UTC)。
+    rationale: 窓口処理の後入力(オフライン記入分の入力)があるため、発生時刻はサーバ時計でなくリクエストが運ぶ。これにより核(期限・延滞計算)が決定的になり unit/L3 で検査可能(G2' 測定可能性が導いた仕様判断)。非Z オフセットは 400 で拒否(webapi CHEAT-003 の教訓を仕様化)。
+    rationale_precision: ok
+    classification_hint: surface
+    external_source: HTTP/REST 規約・ISO-8601(K-BOM へ)
+    counterexamples:
+      - サーバ現在時刻で延滞判定し検査が時刻依存で不安定になる
+      - "+09:00" オフセットを暗黙に UTC 換算して受理する
+
+  - id: REQ-007
+    statement: 返却済みの貸出への再返却要求は拒否する。存在しない蔵書・会員・貸出への操作は 404 とする。
+    rationale: 状態機械の不正遷移(silence-checklist §12)。再返却 = 409 + 機械可読コード(二重課金防止)。404 のエラーコード名も仕様で固定する(webapi-02 で not_found 未規定が sonnet 露見した教訓)。
+    rationale_precision: ok
+    classification_hint: core
+    counterexamples:
+      - 再返却で延滞料金が再計算され二重請求になる
+
+nfr_targets:
+  - id: NFR-001
+    statement: 貸出 API(POST /v1/loans)の応答時間は、ローカル直列 50 リクエストの中央値で 300ms 未満。
+    requirement_refs: [REQ-006]
+    verified_by: CP-NFR-LATENCY-001   # Control Plan の NFR 行(L3 計測)

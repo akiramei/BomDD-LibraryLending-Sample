@@ -1,0 +1,129 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: Control Plan
+
+control_plan:
+  depth_ladder:
+    unit: ドメイン判定をプロセス外形なしで検査(自己受入ハーネス内)
+    L1: プロセスが起動し HTTP 応答が返る
+    L2: 契約メタデータ(status code・エラー形・フィールド集合)
+    L3: 実行・内容(計算値・状態遷移・再起動永続性・レイテンシ計測)
+    G: (本題材では使用しない)
+
+  characteristics:
+    - id: CP-CORE-AVAIL-001
+      characteristic: 在庫判定(availableCopies = copies − active、0で拒否、返却で復元)
+      classification: core
+      depth: unit
+      tolerance: exact
+      fixture: test/Library.Acceptance
+      oracle: copies=1 で貸出→availableCopies=0→2件目拒否→返却→1に復元→再貸出可
+      approver: automated
+      test_vectors:
+        - copies=1: 1件目成功・2件目 no_copies_available
+        - 返却後: availableCopies 復元・再貸出成功
+        - copies=2: 2件まで成功・3件目拒否
+
+    - id: CP-CORE-LIMIT-001
+      characteristic: 会員上限(active ≤ 3)
+      classification: core
+      depth: unit
+      tolerance: exact
+      fixture: test/Library.Acceptance
+      oracle: 同一会員で3件目成功・4件目 loan_limit_exceeded・1件返却後は成功
+      approver: automated
+      test_vectors:
+        - 3件目=成功(境界は4件目)
+        - 4件目=loan_limit_exceeded
+        - 返却済みは数えない(3件中1返却→新規成功)
+
+    - id: CP-CORE-DUE-001
+      characteristic: dueDateUtc = UTC暦日 + 14日(暦日加算)
+      classification: core
+      depth: unit
+      tolerance: exact
+      fixture: test/Library.Acceptance
+      oracle: dueDateUtc 文字列(yyyy-MM-dd)の一致
+      approver: automated
+      test_vectors:
+        - 2026-01-31T10:00:00Z → 2026-02-14(月またぎ)
+        - 2026-12-25T00:00:00Z → 2027-01-08(年またぎ)
+        - 2026-06-10T23:59:59Z → 2026-06-24(時刻無関係)
+
+    - id: CP-CORE-FINE-001
+      characteristic: fineAmount = max(0, 暦日差) × 100
+      classification: core
+      depth: unit
+      tolerance: exact(整数)
+      fixture: test/Library.Acceptance
+      oracle: 返却応答の fineAmount 一致
+      approver: automated
+      test_vectors:
+        - 期限日当日 23:59:59Z 返却 → 0(FMEA-001 狙い撃ち)
+        - 期限翌日 00:00:00Z 返却 → 100
+        - 期限+3日 → 300
+        - 早期返却(期限前)→ 0
+
+    - id: CP-CORE-OVERDUE-001
+      characteristic: 延滞ブロック(any 判定・当日境界・返却済み除外)
+      classification: core
+      depth: unit
+      tolerance: exact
+      fixture: test/Library.Acceptance
+      oracle: 新規貸出の 409 member_overdue_blocked / 成功の弁別
+      approver: automated
+      test_vectors:
+        - 期限日当日の新規貸出 → ブロックしない(> のみ)
+        - 期限+1日 → member_overdue_blocked
+        - 延滞貸出を返却済みにした後 → ブロックしない
+        - active 2件中1件のみ延滞 → ブロックする(any)
+
+    - id: CP-API-CONTRACT-001
+      characteristic: HTTP 契約(status・エラー語彙・判定順序・状態機械)
+      classification: surface
+      depth: L3
+      tolerance: status と code は exact。message は非空のみ
+      fixture: oracle/fixed-oracle.ps1(設計者側)+ test/Library.Acceptance(自己)
+      oracle: 固定オラクル S1–S16 の契約期待との突合
+      approver: automated
+
+    - id: CP-API-DATETIME-001
+      characteristic: 日時受理ポリシー(strict literal-Z)
+      classification: surface
+      depth: L3
+      tolerance: exact(400 + invalid_request)
+      fixture: oracle/fixed-oracle.ps1
+      oracle: '+09:00 / +00:00 / 小文字z / 日付のみ → 400。小数秒付き Z → 受理'
+      approver: automated
+      test_vectors:
+        - '2026-06-10T09:00:00+09:00 → 400'
+        - '2026-06-10T09:00:00+00:00 → 400(FMEA-002 狙い撃ち)'
+        - '2026-06-10T09:00:00.123Z → 受理'
+
+    - id: CP-LIST-ORDER-001
+      characteristic: 一覧の順序と形(瞬時昇順・id序数・activeの省略フィールド)
+      classification: surface
+      depth: L3
+      tolerance: 順序 exact。フィールド: 列挙必須+activeの除外確認
+      fixture: oracle/fixed-oracle.ps1
+      oracle: 複数貸出を作って items の順序とフィールド集合を検査
+      approver: automated
+
+    - id: CP-PERSIST-RESTART-001
+      characteristic: 再起動永続性(REQ-005)
+      classification: core
+      depth: L3
+      tolerance: 再起動前後で API 取得値が同値
+      fixture: oracle/fixed-oracle.ps1(プロセス停止→再起動を含む)
+      oracle: 貸出作成→プロセス kill→再起動→GET で貸出・在庫・返却状態が同値(FMEA-003 狙い撃ち)
+      approver: automated
+
+    - id: CP-NFR-LATENCY-001
+      characteristic: 貸出 API レイテンシ(NFR-001)
+      classification: surface
+      depth: L3
+      tolerance: 直列 50 件の中央値 < 300ms(ローカル)
+      fixture: oracle/fixed-oracle.ps1(計測部)
+      oracle: 50 回の POST /v1/loans の所要時間中央値を計測
+      approver: automated

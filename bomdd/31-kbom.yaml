@@ -1,0 +1,93 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: K-BOM
+
+# 調達手順(playbook §4.3): クリーンな実装者エージェントに「慣習で埋めるであろう判断」を
+# 事前列挙させ(2026-06-10 実施)、分岐リスクの高い判断をここに固定した。
+# K-BOM に無い判断は CHEAT として報告する。
+
+kbom:
+  items:
+    - id: K-HTTP-REST-001
+      name: HTTP/REST conventions for this product
+      knowledge_kind: domain-convention
+      version: v1
+      source: REST API practice(事前抽出で 422/problem+json 等に分岐すると判明したため固定)
+      managed_knowledge:
+        - すべての入力検証エラーは HTTP 400 + code=invalid_request(422 は使わない)
+        - 作成成功は 201。Location ヘッダは任意(検査しない)
+        - ルートは /v1 プレフィックス + 複数形(/v1/books, /v1/members, /v1/loans)。/api プレフィックスは使わない
+        - 返却は POST /v1/loans/{id}/return(PATCH/DELETE ではない)
+        - 状態競合(在庫切れ・上限・延滞ブロック・再返却)は 409
+        - 不在リソースは 404 + code=not_found
+        - Content-Type は application/json
+        - HTTP 500 は契約違反(受入で発生したら fail)
+      risk_if_implicit: 検証エラーの status(400/422)・エラー形式・ルート規約が工場ごとに分岐する
+      consumers: [E-HTTP-CONTRACT-001]
+
+    - id: K-ERROR-SCHEMA-001
+      name: Error envelope(独自スキーマ)
+      knowledge_kind: domain-convention
+      version: v1
+      source: 仕様 §2.8(事前抽出で RFC 9457 problem+json に分岐すると判明したため明示固定)
+      managed_knowledge:
+        - 'エラー応答は常に { "error": { "code": string, "message": string } }。RFC 9457 application/problem+json は使わない'
+        - code は仕様 §2.8 の 6 種のみ。message は非空(内容は自由)
+      risk_if_implicit: problem+json 派と独自形式派で応答スキーマが分岐する
+      consumers: [E-ERROR-SCHEMA-001]
+
+    - id: K-JSON-001
+      name: JSON serialization conventions
+      knowledge_kind: domain-convention
+      version: v1
+      source: System.Text.Json practice
+      managed_knowledge:
+        - プロパティ名は camelCase
+        - status は小文字文字列("active" / "returned")
+        - active の貸出オブジェクトに returnedAtUtc / fineAmount を出さない(null でなく省略)
+        - 仕様に列挙されたフィールドは必須で出す。追加フィールドは禁止しない(探索次元として観測される)
+      risk_if_implicit: Pascal/camel、null 出力、enum 数値化が工場ごとに分岐する
+      consumers: [E-HTTP-CONTRACT-001, E-ERROR-SCHEMA-001]
+
+    - id: K-UTC-ISO8601-001
+      name: UTC ISO-8601 strict literal-Z policy
+      knowledge_kind: domain-convention
+      version: v1
+      source: ISO-8601 / RFC 3339(webapi CHEAT-003 の教訓を一般化)
+      managed_knowledge:
+        - '入力受理: yyyy-MM-ddTHH:mm:ssZ および小数秒 1〜7 桁付き。大文字 Z のみ'
+        - '拒否(400 invalid_request): 小文字 z / 数値オフセット(+09:00, +00:00 含む)/ オフセット無し / 日付のみ'
+        - 実装注意: DateTime/DateTimeOffset の既定 Parse はオフセットを受理してしまう。厳密フォーマット指定(ParseExact 等)で検証する
+        - 期限・延滞は UTC 暦日比較(DateOnly 推奨)。返却の過去判定(§2.5-4)のみ瞬時比較
+        - 応答の日時は literal-Z UTC。dueDateUtc は yyyy-MM-dd の 10 文字
+        - サーバ時計(UtcNow)はドメイン判定に使わない
+      risk_if_implicit: 既定パーサがオフセットを受理し、24時間×14 で期限を計算する工場が出る
+      consumers: [E-DATETIME-POLICY-001, E-DUE-FINE-001, E-OVERDUE-BLOCK-001]
+
+    - id: K-SQLITE-001
+      name: SQLite persistence conventions
+      knowledge_kind: tool-grammar
+      version: 'Microsoft.Data.Sqlite 9.0.0'
+      source: Microsoft.Data.Sqlite docs / SQLite practice(事前抽出で WAL・トランザクション境界・接続管理に分岐と判明)
+      managed_knowledge:
+        - パッケージは Microsoft.Data.Sqlite 9.0.0 のみ(EF Core / Dapper / ULID 等の追加パッケージは使わない)
+        - DB パスは環境変数 LIBRARY_DB_PATH(未設定時 ./library.db)。接続文字列は Data Source=<path>
+        - 起動時に CREATE TABLE IF NOT EXISTS でスキーマ作成(内部スキーマは自由)
+        - 書き込み操作(貸出・返却・登録)は判定と更新を 1 トランザクション内で行う(INV-1/INV-2 の原子性)
+        - 接続はリクエストごとに開いて閉じる(プールは既定に任せる)。プロセス内共有のグローバル接続は使わない
+        - WAL モード・PRAGMA 類は任意(挙動契約に影響しない範囲で実装裁量。採用したらずる報告)
+      risk_if_implicit: 接続ライフタイム・トランザクション境界・追加 ORM の採用が工場ごとに分岐する
+      consumers: [E-SQLITE-STORE-001, E-PERSISTENCE-001]
+
+    - id: K-ID-001
+      name: ID generation policy
+      knowledge_kind: domain-convention
+      version: v1
+      source: 仕様 INV-5
+      managed_knowledge:
+        - 接頭辞: 蔵書 bk_ / 会員 mb_ / 貸出 ln_
+        - サーバ生成のみ(クライアント指定 ID は受け付けない)
+        - 接頭辞以降の形式(GUID/hex/連番/ULID 風文字列)は実装裁量。ただし選択をずる報告すること(探索次元)
+      risk_if_implicit: ID 形式が工場ごとに分岐する(意図的に探索層へ置く)
+      consumers: [E-ID-POLICY-001]

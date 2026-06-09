@@ -1,0 +1,38 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: Routing
+
+routing:
+  id: ROUTING-LENDING-001
+  purpose: 永続化を含む Web/API をフォワード・モード(原版なし)で製造する
+  factory_isolation: 製造装置には bomdd/20-spec.md・30〜34・40-work-order.md のみ供与。設計対話・oracle/ ディレクトリ・他工場成果は非開示
+  cheat_report: BOM/K-BOM/Control Plan から導けなかった判断は実装を止めず全件 cheat-log 形式で報告する
+  steps:
+    - order: 1
+      id: ROUTE-READ
+      name: BOM 一式を読む
+      input: [bomdd/20-spec.md, bomdd/30-ebom.yaml, bomdd/31-kbom.yaml, bomdd/32-mbom.yaml, bomdd/33-control-plan.yaml]
+      output: [implementation plan]
+    - order: 2
+      id: ROUTE-MANUFACTURE-CORE
+      name: 核(ドメイン判定)を製造する
+      input: [M-CORE-LENDING-001]
+      output: [src/Library.Core]
+    - order: 3
+      id: ROUTE-MANUFACTURE-SURFACE
+      name: API + SQLite 表面を製造する(K-BOM 参照必須)
+      input: [M-API-SQLITE-001]
+      output: [src/Library.Api]
+    - order: 4
+      id: ROUTE-SELF-ACCEPTANCE
+      name: 自己受入(Control Plan の unit 行 test_vectors を全て被覆。緑が納品条件。ただし自己受入緑≠合格)
+      input: [M-ACCEPTANCE-HARNESS-001]
+      command:
+        - dotnet build
+        - dotnet run --project test/Library.Acceptance
+      output: [acceptance log(test/Library.Acceptance の標準出力)]
+    - order: 5
+      id: ROUTE-CHEAT-REPORT
+      name: ずる報告を提出する
+      output: [cheat-report.md(cheat-log 形式・全件)]

@@ -1,0 +1,49 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: Fixed Oracle        # ★設計者のみ。製造装置に渡さない
+
+# フォワード・モード: 原版が無いため、期待値はすべて仕様(20-spec.md rev1)から導出。
+# 実行治具: oracle/fixed-oracle.ps1(各工場の成果物に同一シナリオを流す)
+# 凍結: tag forward-01-input-bom 時点で不変(収束ループ中は変更しない)
+
+fixed_oracle:
+  frozen_since: forward-01-input-bom
+  equivalence_rules:
+    - id: EQ-001
+      compares:
+        - HTTP status code(exact)
+        - error.code(exact・仕様§2.8 の列挙)
+        - 仕様列挙フィールドの値(dueDateUtc は文字列 exact、日時は瞬時として比較、金額・部数は数値 exact)
+        - 一覧の順序(瞬時昇順+id 序数昇順)
+        - active オブジェクトに returnedAtUtc/fineAmount が無いこと
+      ignores:
+        - error.message の文面(非空のみ確認)
+        - ID の具体値(接頭辞のみ検査)
+        - 応答日時の小数秒桁(瞬時が同じなら等価)
+        - 仕様列挙外の追加フィールド(probe P-03 で観測、合否に入れない)
+        - Location 等の応答ヘッダ
+      normalization: 日時は DateTimeOffset にパースして瞬時比較。JSON キーは camelCase 前提(K-JSON-001 で固定済み)
+      rationale: 契約セマンティクスのみ比較(L0 過剰結合の回避。検査器自身にも適用)
+
+  cases:   # 期待値の典拠を spec_ref に示す
+    - { id: S01, scenario: 蔵書登録(title=Refactoring, copies=2), expect: '201 / id=bk_* / copies=2 / availableCopies=2', spec_ref: §2.1, depth: L3 }
+    - { id: S02, scenario: 会員登録(name=Alice), expect: '201 / id=mb_*', spec_ref: §2.3, depth: L3 }
+    - { id: S03, scenario: 蔵書登録の検証違反(title空・copies=0), expect: '400 / invalid_request', spec_ref: §2.1, depth: L2 }
+    - { id: S04, scenario: 不在蔵書の取得, expect: '404 / not_found', spec_ref: §2.2, depth: L2 }
+    - { id: S05, scenario: 貸出成功(2026-01-31T10:00:00Z), expect: '201 / dueDateUtc=2026-02-14 / status=active / loanedAtUtc瞬時一致', spec_ref: §2.4(月またぎ暦日加算), depth: L3 }
+    - { id: S06, scenario: 在庫切れ(copies=2 の蔵書へ3件目), expect: '2件目=201, 3件目=409 no_copies_available', spec_ref: §2.4-5, depth: L3 }
+    - { id: S07, scenario: 上限(同一会員4件目), expect: '3件目=201, 4件目=409 loan_limit_exceeded', spec_ref: §2.4-4, depth: L3 }
+    - { id: S08, scenario: ' +09:00 オフセット', expect: '400 / invalid_request', spec_ref: §1, depth: L2 }
+    - { id: S09, scenario: ' +00:00 オフセット', expect: '400 / invalid_request', spec_ref: §1(G2で固定), depth: L2 }
+    - { id: S10, scenario: 小数秒付き literal-Z, expect: '201(受理)', spec_ref: §1, depth: L2 }
+    - { id: S11, scenario: 期限日当日 23:59:59Z 返却, expect: '200 / fineAmount=0 / status=returned', spec_ref: §2.5(時刻不問), depth: L3 }
+    - { id: S12, scenario: 期限翌日 00:00:00Z 返却, expect: '200 / fineAmount=100', spec_ref: §2.5, depth: L3 }
+    - { id: S13, scenario: 期限+3日返却, expect: '200 / fineAmount=300', spec_ref: §2.5, depth: L3 }
+    - { id: S14, scenario: 再返却, expect: '409 / already_returned', spec_ref: §2.5-3, depth: L2 }
+    - { id: S15, scenario: 延滞会員の新規貸出(期限+1日), expect: '409 / member_overdue_blocked', spec_ref: §2.4-3(any判定), depth: L3 }
+    - { id: S16, scenario: 期限日当日の会員の新規貸出, expect: '201(まだ延滞でない)', spec_ref: INV-3(>のみ), depth: L3 }
+    - { id: S17, scenario: returnedAt < loanedAt(同一暦日・時刻のみ過去), expect: '400 / invalid_request(瞬時比較)', spec_ref: §2.5-4(G2で固定), depth: L2 }
+    - { id: S18, scenario: 一覧の順序と形(active/returned混在), expect: '瞬時昇順+id序数 / activeにreturnedAtUtc・fineAmount無し / 両status含む', spec_ref: §2.6, depth: L3 }
+    - { id: S19, scenario: 再起動永続性(貸出作成→kill→再起動), expect: '貸出・在庫・返却状態が API から同値で取得できる', spec_ref: §2.7, depth: L3 }
+    - { id: S20, scenario: NFR レイテンシ(直列50件のPOST /v1/loans), expect: '中央値 < 300ms', spec_ref: NFR-001, depth: L3 }

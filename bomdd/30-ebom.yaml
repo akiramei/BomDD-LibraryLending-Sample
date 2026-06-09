@@ -1,0 +1,139 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: E-BOM
+
+ebom:
+  items:
+    - id: E-BOOK-INVENTORY-001
+      name: 蔵書在庫(部数と貸出可能数)
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-001]
+      invariants:
+        - availableCopies = copies − active loan 数(常時)
+        - 蔵書ごとに active loan 数 ≤ copies(INV-1)
+        - availableCopies == 0 の貸出要求は no_copies_available
+      acceptance_refs: [CP-CORE-AVAIL-001]
+
+    - id: E-LOAN-LIMIT-001
+      name: 会員貸出上限
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-002]
+      invariants:
+        - 会員ごとに active loan 数 ≤ 3(INV-2)。3冊目は成功、4冊目で loan_limit_exceeded
+        - 返却で枠が空く(active のみ数える)
+      acceptance_refs: [CP-CORE-LIMIT-001]
+
+    - id: E-DUE-FINE-001
+      name: 期限・延滞料金計算
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-003]
+      kbom_refs: [K-UTC-ISO8601-001]
+      invariants:
+        - dueDateUtc = UTC暦日(loanedAtUtc) + 14日(暦日加算。時刻は使わない)
+        - fineAmount = max(0, 暦日差(UTC暦日(returnedAtUtc) − dueDateUtc)) × 100(整数演算のみ)
+        - 期限日当日の返却(時刻不問)= 0 / 期限翌日 00:00:00Z = 100 / 早期返却 = 0
+      acceptance_refs: [CP-CORE-DUE-001, CP-CORE-FINE-001]
+
+    - id: E-OVERDUE-BLOCK-001
+      name: 延滞会員の貸出ブロック
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-004]
+      depends_on: [E-DUE-FINE-001]
+      invariants:
+        - 延滞中 = その会員の active loan の いずれか1件でも UTC暦日(新規貸出の loanedAtUtc) > dueDateUtc(INV-3)
+        - 期限日当日はまだ延滞でない(> のみ、≥ ではない)
+        - 返却済みの過去延滞ではブロックしない
+        - サーバ時計は使わない(基準時刻はリクエストが運ぶ)
+      acceptance_refs: [CP-CORE-OVERDUE-001]
+
+    - id: E-LOAN-STATE-001
+      name: 貸出状態機械
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-007]
+      invariants:
+        - active → returned の一方向のみ(INV-4)。再返却は already_returned(同一 returnedAtUtc 再送でも)
+        - returnedAtUtc < loanedAtUtc(瞬時比較)は invalid_request。同一瞬時は受理
+      acceptance_refs: [CP-API-CONTRACT-001]
+
+    - id: E-PERSISTENCE-001
+      name: 再起動永続性
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-005]
+      depends_on: [E-SQLITE-STORE-001]
+      invariants:
+        - 全データ(蔵書・会員・貸出・返却状態)はプロセス再起動後も API から同値で取得できる
+      acceptance_refs: [CP-PERSIST-RESTART-001]
+
+    - id: E-SQLITE-STORE-001
+      name: SQLite ストア(永続化表面)
+      classification: surface
+      rationale_type: external-knowledge
+      external_source_ref: K-SQLITE-001
+      kbom_refs: [K-SQLITE-001]
+      invariants:
+        - 保存先は単一ファイル。パスは LIBRARY_DB_PATH(未設定時 ./library.db)
+        - 起動時にファイルが無ければスキーマごと作成
+        - 内部スキーマは自由(検査は API 挙動)
+      acceptance_refs: [CP-PERSIST-RESTART-001]
+
+    - id: E-HTTP-CONTRACT-001
+      name: HTTP API 契約
+      classification: surface
+      rationale_type: external-knowledge
+      external_source_ref: K-HTTP-REST-001
+      kbom_refs: [K-HTTP-REST-001, K-JSON-001]
+      graph_edges:
+        owner: E-HTTP-CONTRACT-001
+        consumers: [E-BOOK-INVENTORY-001, E-LOAN-LIMIT-001, E-DUE-FINE-001, E-OVERDUE-BLOCK-001, E-LOAN-STATE-001]
+      invariants:
+        - エンドポイント・status code・判定順序は仕様 §2 の通り(順序は上から評価)
+        - 一覧の並び順 = loanedAtUtc 瞬時昇順、同値は id 序数昇順
+        - active の貸出オブジェクトは returnedAtUtc/fineAmount を含めない
+      acceptance_refs: [CP-API-CONTRACT-001, CP-LIST-ORDER-001, CP-NFR-LATENCY-001]
+
+    - id: E-ERROR-SCHEMA-001
+      name: エラー応答スキーマ
+      classification: surface
+      rationale_type: external-knowledge
+      external_source_ref: K-ERROR-SCHEMA-001
+      kbom_refs: [K-ERROR-SCHEMA-001]
+      invariants:
+        - '{ "error": { "code", "message" } }。code は仕様 §2.8 の6種のみ。message 非空'
+      acceptance_refs: [CP-API-CONTRACT-001]
+
+    - id: E-DATETIME-POLICY-001
+      name: 日時受理ポリシー
+      classification: surface
+      rationale_type: external-knowledge
+      external_source_ref: K-UTC-ISO8601-001
+      kbom_refs: [K-UTC-ISO8601-001]
+      graph_edges:
+        owner: E-DATETIME-POLICY-001
+        consumers: [E-HTTP-CONTRACT-001, E-DUE-FINE-001, E-OVERDUE-BLOCK-001]
+      invariants:
+        - 大文字 Z のみ・小数秒 0〜7 桁。+00:00 を含む非Z表記・小文字z・日付のみは invalid_request
+        - 未来日時は受理。サーバ時計は使わない
+      acceptance_refs: [CP-API-DATETIME-001]
+
+    - id: E-ID-POLICY-001
+      name: ID 採番ポリシー
+      classification: surface
+      rationale_type: constraint
+      external_source_ref: K-ID-001
+      kbom_refs: [K-ID-001]
+      invariants:
+        - 接頭辞 bk_ / mb_ / ln_(INV-5)。接頭辞以降は実装裁量(選択はずる報告対象)
+      acceptance_refs: [CP-API-CONTRACT-001]
+
+nfr_targets:
+  - id: NFR-001
+    statement: POST /v1/loans の応答時間は、ローカル直列 50 リクエストの中央値で 300ms 未満
+    requirement_refs: [REQ-006]
+    verified_by: CP-NFR-LATENCY-001

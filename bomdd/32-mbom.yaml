@@ -1,0 +1,130 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: M-BOM
+
+mbom:
+  manufacturing_units:
+    - id: M-CORE-LENDING-001
+      ebom_refs:
+        - E-BOOK-INVENTORY-001
+        - E-LOAN-LIMIT-001
+        - E-DUE-FINE-001
+        - E-OVERDUE-BLOCK-001
+        - E-LOAN-STATE-001
+      artifact:
+        path: src/Library.Core
+        type: dotnet-classlib
+      interface_contract:
+        style: 純粋なドメイン判定(HTTP・SQLite に依存しない)。日時は呼び出し側から受け取る
+        decisions: 貸出可否判定(順序込み)/ dueDate 計算 / fine 計算 / 延滞判定
+      invariants:
+        - 期限・延滞・料金は UTC 暦日演算(時刻不問)。整数演算のみ
+        - 判定順序は仕様 §2.4/§2.5 の通り(上から評価)
+      acceptance_refs:
+        - CP-CORE-AVAIL-001
+        - CP-CORE-LIMIT-001
+        - CP-CORE-DUE-001
+        - CP-CORE-FINE-001
+        - CP-CORE-OVERDUE-001
+
+    - id: M-API-SQLITE-001
+      ebom_refs:
+        - E-HTTP-CONTRACT-001
+        - E-ERROR-SCHEMA-001
+        - E-DATETIME-POLICY-001
+        - E-ID-POLICY-001
+        - E-SQLITE-STORE-001
+        - E-PERSISTENCE-001
+      artifact:
+        path: src/Library.Api
+        type: aspnetcore-minimal-api(.NET 10)
+      interface_contract:
+        base_path: /v1
+        endpoints: POST /v1/books, GET /v1/books/{id}, POST /v1/members, POST /v1/loans, POST /v1/loans/{id}/return, GET /v1/loans?memberId=
+        listen: ASPNETCORE_URLS 環境変数に従う(ハードコードしない)
+        db_path: LIBRARY_DB_PATH 環境変数(未設定時 ./library.db)
+        error_schema: '{ "error": { "code", "message" } }(K-ERROR-SCHEMA-001)'
+        datetime: strict literal-Z(K-UTC-ISO8601-001)
+      invariants:
+        - 書き込みは判定と更新を同一トランザクションで(K-SQLITE-001)
+        - 一覧は loanedAtUtc 瞬時昇順・同値 id 序数昇順
+        - active 貸出に returnedAtUtc/fineAmount を出さない
+      acceptance_refs:
+        - CP-API-CONTRACT-001
+        - CP-API-DATETIME-001
+        - CP-LIST-ORDER-001
+        - CP-PERSIST-RESTART-001
+        - CP-NFR-LATENCY-001
+
+    - id: M-ACCEPTANCE-HARNESS-001
+      artifact:
+        path: test/Library.Acceptance
+        type: dotnet-console-acceptance(自己受入。Control Plan の unit 行 + 主要 L3 を被覆)
+      verifies:
+        - M-CORE-LENDING-001
+        - M-API-SQLITE-001
+
+procurement:
+  - package: Microsoft.Data.Sqlite
+    version: 9.0.0
+    rationale: 軽量・単一ファイル・BCL外で最小の永続化。実現性確認済(2026-06-10)
+    license: MIT
+    substitutable: false
+  # これ以外の NuGet パッケージは使わない(必要だと判断したらずる報告)
+
+fmea:
+  - id: FMEA-001
+    unit: M-CORE-LENDING-001
+    failure_mode: 期限・延滞を 24時間×14 の時間差で計算する(暦日でなく)
+    effect: 期限日深夜返却に誤課金(REQ-003 違反)
+    targeted_by: CP-CORE-FINE-001(test_vectors の当日 23:59:59Z)
+  - id: FMEA-002
+    unit: M-API-SQLITE-001
+    failure_mode: 既定の日時パーサがオフセット(+09:00/+00:00)を受理する
+    effect: 検証契約違反 + 暗黙のタイムゾーン換算
+    targeted_by: CP-API-DATETIME-001
+  - id: FMEA-003
+    unit: M-API-SQLITE-001
+    failure_mode: in-memory 実装または接続スコープ誤りで再起動後にデータ消失
+    effect: REQ-005 違反(自己テスト緑のまま通過しうる)
+    targeted_by: CP-PERSIST-RESTART-001(再起動 execution)
+  - id: FMEA-004
+    unit: M-CORE-LENDING-001
+    failure_mode: 延滞ブロックを「全件延滞」or「期限日当日も延滞」と誤実装
+    effect: REQ-004 違反
+    targeted_by: CP-CORE-OVERDUE-001(any 判定・当日境界の vectors)
+  - id: FMEA-005
+    unit: M-API-SQLITE-001
+    failure_mode: 返却済み貸出が在庫・上限カウントに残り続ける
+    effect: REQ-001/002 違反(貸せるのに拒否)
+    targeted_by: CP-CORE-AVAIL-001 / CP-CORE-LIMIT-001(返却後の復元 vectors)
+
+# 沈黙次元の第2回掃討(silence-checklist 全行。deferred は全て解消済み)
+silence_sweep:
+  - { dimension: 丸め方式, decision: specified, where: 仕様§1(整数演算のみ) }
+  - { dimension: 精度・単位, decision: specified, where: 暦日/瞬時の使い分け=仕様§1・§2.5-4 }
+  - { dimension: 範囲・境界値, decision: specified, where: 仕様§2.1/2.3(1..200等)・CP test_vectors }
+  - { dimension: 既定値・継承, decision: specified, where: LIBRARY_DB_PATH 未設定時 ./library.db }
+  - { dimension: 識別子(接頭辞), decision: specified, where: INV-5 / K-ID-001 }
+  - { dimension: 識別子(形式・一意性根拠), decision: exploratory, note: probe P-01。選択はずる報告 }
+  - { dimension: 日時(受理形式), decision: specified, where: K-UTC-ISO8601-001 }
+  - { dimension: 日時(応答小数秒), decision: exploratory, note: probe P-02。echo 不要 }
+  - { dimension: 座標系・基準系, decision: specified, where: UTC暦日・サーバ時計不使用(INV-3) }
+  - { dimension: エラー語彙・status対応, decision: specified, where: 仕様§2.8 / K-HTTP-REST-001 }
+  - { dimension: 検証順序, decision: specified, where: 仕様§2.4/2.5 判定順序 }
+  - { dimension: 冪等性・リトライ, decision: out-of-scope, note: charter(冪等キーなし)。再返却409のみ仕様化 }
+  - { dimension: 応答フィールド集合, decision: 一部exploratory, note: 列挙フィールド必須・activeの省略=specified。追加フィールド=probe P-03 }
+  - { dimension: JSON形状・キー綴り, decision: specified, where: K-JSON-001(camelCase) }
+  - { dimension: 一覧の順序, decision: specified, where: 仕様§2.6(瞬時昇順+id序数) }
+  - { dimension: 非同期・分散, decision: out-of-scope, note: 同期APIのみ }
+  - { dimension: 外部ツール文法, decision: specified, where: K-SQLITE-001 }
+  - { dimension: UI・知覚, decision: out-of-scope, note: APIのみ }
+  - { dimension: 状態機械, decision: specified, where: INV-4・already_returned }
+  - { dimension: 調達部品, decision: specified, where: 本ファイル procurement(列挙外=ずる報告) }
+  - { dimension: 永続化(スキーマ帰属), decision: out-of-scope, note: 内部スキーマ自由・挙動で検査(仕様§2.7) }
+  - { dimension: 永続化(マイグレーション), decision: out-of-scope, note: charter(forward-01.5 ECO で検証) }
+  - { dimension: 永続化(トランザクション境界), decision: specified, where: K-SQLITE-001(書き込み=1トランザクション) }
+  - { dimension: 永続化(同時更新競合), decision: specified(検査は次段), note: INV-1。MeasurementCapability=insufficient-depth }
+  - { dimension: 永続化(データ互換性), decision: out-of-scope, note: 単一版のみ。ECO で扱う }
+  - { dimension: NFR, decision: specified, where: NFR-001 / CP-NFR-LATENCY-001 }
