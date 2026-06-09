@@ -1,0 +1,163 @@
+{
+  "total": 23,
+  "results": [
+    {
+      "actual": "201 id=bk_2a5d6b78ab4b43f2b7ff005360851215 avail=2",
+      "pass": true,
+      "expected": "201 bk_* copies=2 avail=2",
+      "id": "S01"
+    },
+    {
+      "actual": "201 id=mb_9572619fffa84bc8b1e623d9a53272de",
+      "pass": true,
+      "expected": "201 mb_*",
+      "id": "S02"
+    },
+    {
+      "actual": "400/invalid_request",
+      "pass": true,
+      "expected": "400/invalid_request",
+      "id": "S03"
+    },
+    {
+      "actual": "404/not_found",
+      "pass": true,
+      "expected": "404/not_found",
+      "id": "S04"
+    },
+    {
+      "actual": "201 due=2026-02-14 status=active",
+      "pass": true,
+      "expected": "201 due=2026-02-14 active",
+      "id": "S05"
+    },
+    {
+      "actual": "2nd=201 3rd=409/no_copies_available",
+      "pass": true,
+      "expected": "2nd=201, 3rd=409/no_copies_available",
+      "id": "S06"
+    },
+    {
+      "actual": "1-3=201,201,201 4th=409/loan_limit_exceeded",
+      "pass": true,
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded",
+      "id": "S07"
+    },
+    {
+      "actual": "400/invalid_request",
+      "pass": true,
+      "expected": "400/invalid_request (+09:00)",
+      "id": "S08"
+    },
+    {
+      "actual": "400/invalid_request",
+      "pass": true,
+      "expected": "400/invalid_request (+00:00)",
+      "id": "S09"
+    },
+    {
+      "actual": "201",
+      "pass": true,
+      "expected": "201 (.123Z accepted)",
+      "id": "S10"
+    },
+    {
+      "actual": "200 fine=0",
+      "pass": true,
+      "expected": "200 fine=0 (due-day 23:59:59Z)",
+      "id": "S11"
+    },
+    {
+      "actual": "200 fine=100",
+      "pass": true,
+      "expected": "200 fine=100 (due+1 00:00:00Z)",
+      "id": "S12"
+    },
+    {
+      "actual": "200 fine=300",
+      "pass": true,
+      "expected": "200 fine=300 (due+3)",
+      "id": "S13"
+    },
+    {
+      "actual": "409/already_returned",
+      "pass": true,
+      "expected": "409/already_returned",
+      "id": "S14"
+    },
+    {
+      "actual": "409/member_overdue_blocked",
+      "pass": true,
+      "expected": "409/member_overdue_blocked (due+1)",
+      "id": "S15"
+    },
+    {
+      "actual": "201",
+      "pass": true,
+      "expected": "201 (due-day not blocked)",
+      "id": "S16"
+    },
+    {
+      "actual": "400/invalid_request",
+      "pass": true,
+      "expected": "400/invalid_request (instant past)",
+      "id": "S17"
+    },
+    {
+      "actual": "count=3 order=True shape=True",
+      "pass": true,
+      "expected": "order(oldest,id-ordinal) + shape",
+      "id": "S18"
+    },
+    {
+      "actual": "checked=3 bad=",
+      "pass": true,
+      "expected": "prefix + 32 lowercase hex",
+      "id": "S21"
+    },
+    {
+      "actual": "S05=2026-01-31T10:00:00Z S10=2026-03-02T09:00:00Z",
+      "pass": true,
+      "expected": "S05=2026-01-31T10:00:00Z / S10=2026-03-02T09:00:00Z (exact)",
+      "id": "S22"
+    },
+    {
+      "actual": "bookId='' 400/invalid_request / memberId='   ' 400/invalid_request / ?memberId= 400/invalid_request",
+      "pass": true,
+      "expected": "empty/whitespace ids and ?memberId= all 400/invalid_request",
+      "id": "S23"
+    },
+    {
+      "actual": "avail 0->0 loans 3->3 ids-equal=True",
+      "pass": true,
+      "expected": "restart-survives (avail/loans/status equal)",
+      "id": "S19"
+    },
+    {
+      "actual": "median=6.3ms n=50",
+      "pass": true,
+      "expected": "median<300ms over 50 seq POST",
+      "id": "S20"
+    }
+  ],
+  "probes": {
+    "latencyMs": 6.3,
+    "ids": [
+      "bk_2a5d6b78ab4b43f2b7ff005360851215",
+      "mb_9572619fffa84bc8b1e623d9a53272de",
+      "ln_1ada4b5a2f9c4379b0eb004161294245"
+    ],
+    "errorMessages": [
+      "title must be 1..200 characters.",
+      "Book not found."
+    ],
+    "extraFields": {},
+    "datetimeEcho": [
+      "2026-01-31T10:00:00Z",
+      "2026-03-02T09:00:00Z"
+    ]
+  },
+  "factory": "C:\\Users\\akira\\source\\repos\\BomDD-LibraryLending-Sample\\loops\\forward-01\\factory-05-sonnet-rev2",
+  "oracle": "forward-01 fixed oracle S01-S20",
+  "pass": 23
+}

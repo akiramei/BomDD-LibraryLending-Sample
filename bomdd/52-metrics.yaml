@@ -50,11 +50,46 @@ exploratory_variance:                  # 合否非混在(分散の観測のみ)
   - dimension: 自己受入の被覆規模(参考)
     values: { opus: '24(+L3自主スモーク)', sonnet: '22', haiku: '17(必須範囲のみ)' }
 
+  # --- rev2(オラクル v2 = S01-S23, tag forward-01-rev2-input-bom) ---
+  - loop: forward-01-rev2
+    factory: factory-04(opus, fresh)
+    bom_rev: rev2
+    oracle_ref: bomdd/41-fixed-oracle.yaml@forward-01-rev2-input-bom(S01-S23)
+    raw_match: 23/23
+    targeted_fix_success: 1/1        # S23(空文字=400)が fresh で消えた=修正は BOM に宿った
+    blocker_diffs: 0
+    new_unspecified_diffs: 0
+    specified_contract_miss: 0
+    note: 現固定オラクル被覆で未観測差分ゼロ。自己受入 25/25(unit 19+L1スモーク6)
+  - loop: forward-01-rev2
+    factory: factory-05(sonnet, fresh)
+    bom_rev: rev2
+    oracle_ref: 同上
+    raw_match: 23/23
+    targeted_fix_success: 1/1
+    blocker_diffs: 0
+    new_unspecified_diffs: 0
+    specified_contract_miss: 0
+    note: 現固定オラクル被覆で未観測差分ゼロ。自己受入 41/41(unit 34+L1スモーク7)
+  - loop: forward-01-rev2
+    factory: factory-06(haiku, 別測定 haiku-retry)
+    bom_rev: rev2
+    oracle_ref: 同上
+    raw_match: 19/23
+    blocker_diffs: 1                 # 根本原因1件: ローカルTZ(JST)混入(+9hシフト)→ S05/S11/S16/S22 に波及
+    new_unspecified_diffs: 0
+    specified_contract_miss: 4
+    note: K-UTC が明記した「TZ変換の罠」を踏む=工場能力。ただし v1 と異なり test_vectors が自己受入で捕捉済(13/16赤のまま納品=納品条件違反を正直申告)。L1スモーク 6/6=v1の故障クラス(API表面死)は消滅
+
 process_metrics:
   g2_readers: 3(opus/sonnet/haiku)
   g2_ambiguity_findings: { opus: 17, sonnet: 13, haiku: 17, 共通指摘: 6 }
   g3_questions: { blocker: 1, friction: 5, minor: 1, 補正後残: 0 }
   kbom_pre_extraction: 実施(分岐候補 40+ 件を事前列挙→固定/explor./scope外に裁定)
   convergence_loops_needed: 0          # opus/sonnet が rev1 で 0 差分(webapi の 2→3→0 と対照的に初回 0)
-  harness_cheats: 1(CHEAT-F01-H001)+ 頑健化1
-  process_cheats: 2(P001 G2再監査省略 / P002 自己受入範囲の盲点)
+  harness_cheats: 2(CHEAT-F01-H001 DateKind / CHEAT-F01-H002 変数名大小非区別=**セルフテストが凍結前に捕捉**)+ 頑健化1
+  process_cheats: 2(P001 G2再監査省略 / P002 自己受入範囲の盲点→rev2でL1スモーク必須化により対策)
+  rev2_observations:
+    - S23 の v1製品 FAIL → rev2 fresh 製品 PASS(2/2)= 仕様昇格はコーチングでなく BOM に宿った
+    - 治具セルフテスト初回実施で実バグ(H002)捕捉。v1判定は再採点で妥当性確認(opus/sonnet S01-S20 全PASS)
+    - haiku の故障モードが「自己に不可視(v1: 自己受入緑+API死)」→「可視だが未修正(rev2: 13/16赤を申告して納品)」へ移行=L1スモーク+test_vectors の観測性向上

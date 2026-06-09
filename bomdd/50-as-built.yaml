@@ -47,3 +47,29 @@ as_built:
       root_cause: POST /v1/loans が正しい literal-Z 入力でも常時 400(error.message="An error occurred processing your request"=例外を防御MWが400化)。API 表面の実行時欠陥
       attribution: specified_contract_miss(工場能力。契約は BOM に明記済み・他2工場は遵守)
     cheats: [CHEAT-F01-001..003(haiku)]
+
+  # --- rev2(input tag forward-01-rev2-input-bom / oracle v2 S01-S23) ---
+  - id: AB-F01R2-factory-04
+    input_bom_tag: forward-01-rev2-input-bom
+    ai_model: opus(fresh クリーンサブエージェント)
+    isolation: clean
+    artifacts: loops/forward-01/factory-04-opus-rev2/
+    self_acceptance: 25/25(unit 19 + L1 API スモーク 6)
+    inspections: { fixed_oracle: 23/23(現固定オラクル被覆で未観測差分ゼロ) }
+  - id: AB-F01R2-factory-05
+    input_bom_tag: forward-01-rev2-input-bom
+    ai_model: sonnet(fresh)
+    isolation: clean
+    artifacts: loops/forward-01/factory-05-sonnet-rev2/
+    self_acceptance: 41/41(unit 34 + L1 スモーク 7)
+    inspections: { fixed_oracle: 23/23 }
+  - id: AB-F01R2-factory-06
+    input_bom_tag: forward-01-rev2-input-bom
+    ai_model: haiku(fresh。別測定 haiku-retry)
+    isolation: clean
+    artifacts: loops/forward-01/factory-06-haiku-retry/
+    self_acceptance: 19 PASS / 3 FAIL(unit 13/16 + L1 スモーク 6/6)。**赤のまま納品(納品条件違反を申告)**
+    inspections:
+      fixed_oracle: 19/23(S05/S11/S16/S22 fail)
+      root_cause: ローカルTZ(JST)混入(echo が入力+9h)。K-UTC-ISO8601-001 が明記した罠
+      attribution: specified_contract_miss(工場能力)。v1 と異なり故障は自己受入で可視化されていた

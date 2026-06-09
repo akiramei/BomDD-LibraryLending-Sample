@@ -1,0 +1,163 @@
+{
+  "probes": {
+    "latencyMs": 5.9,
+    "datetimeEcho": [
+      "2026-01-31T10:00:00Z",
+      "2026-03-02T09:00:00Z"
+    ],
+    "errorMessages": [
+      "title is required and must be 1..200 chars",
+      "resource not found"
+    ],
+    "ids": [
+      "bk_b3e79dbbd5d54f5e9d11eeea6bf408a8",
+      "mb_aab2b45d514648efaa6bbcf7303ce1b2",
+      "ln_e21be30d6d4149378b4ec7f63efdd76d"
+    ],
+    "extraFields": {}
+  },
+  "total": 23,
+  "factory": "C:\\Users\\akira\\source\\repos\\BomDD-LibraryLending-Sample\\loops\\forward-01\\factory-04-opus-rev2",
+  "results": [
+    {
+      "id": "S01",
+      "pass": true,
+      "expected": "201 bk_* copies=2 avail=2",
+      "actual": "201 id=bk_b3e79dbbd5d54f5e9d11eeea6bf408a8 avail=2"
+    },
+    {
+      "id": "S02",
+      "pass": true,
+      "expected": "201 mb_*",
+      "actual": "201 id=mb_aab2b45d514648efaa6bbcf7303ce1b2"
+    },
+    {
+      "id": "S03",
+      "pass": true,
+      "expected": "400/invalid_request",
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S04",
+      "pass": true,
+      "expected": "404/not_found",
+      "actual": "404/not_found"
+    },
+    {
+      "id": "S05",
+      "pass": true,
+      "expected": "201 due=2026-02-14 active",
+      "actual": "201 due=2026-02-14 status=active"
+    },
+    {
+      "id": "S06",
+      "pass": true,
+      "expected": "2nd=201, 3rd=409/no_copies_available",
+      "actual": "2nd=201 3rd=409/no_copies_available"
+    },
+    {
+      "id": "S07",
+      "pass": true,
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded",
+      "actual": "1-3=201,201,201 4th=409/loan_limit_exceeded"
+    },
+    {
+      "id": "S08",
+      "pass": true,
+      "expected": "400/invalid_request (+09:00)",
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S09",
+      "pass": true,
+      "expected": "400/invalid_request (+00:00)",
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S10",
+      "pass": true,
+      "expected": "201 (.123Z accepted)",
+      "actual": "201"
+    },
+    {
+      "id": "S11",
+      "pass": true,
+      "expected": "200 fine=0 (due-day 23:59:59Z)",
+      "actual": "200 fine=0"
+    },
+    {
+      "id": "S12",
+      "pass": true,
+      "expected": "200 fine=100 (due+1 00:00:00Z)",
+      "actual": "200 fine=100"
+    },
+    {
+      "id": "S13",
+      "pass": true,
+      "expected": "200 fine=300 (due+3)",
+      "actual": "200 fine=300"
+    },
+    {
+      "id": "S14",
+      "pass": true,
+      "expected": "409/already_returned",
+      "actual": "409/already_returned"
+    },
+    {
+      "id": "S15",
+      "pass": true,
+      "expected": "409/member_overdue_blocked (due+1)",
+      "actual": "409/member_overdue_blocked"
+    },
+    {
+      "id": "S16",
+      "pass": true,
+      "expected": "201 (due-day not blocked)",
+      "actual": "201"
+    },
+    {
+      "id": "S17",
+      "pass": true,
+      "expected": "400/invalid_request (instant past)",
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S18",
+      "pass": true,
+      "expected": "order(oldest,id-ordinal) + shape",
+      "actual": "count=3 order=True shape=True"
+    },
+    {
+      "id": "S21",
+      "pass": true,
+      "expected": "prefix + 32 lowercase hex",
+      "actual": "checked=3 bad="
+    },
+    {
+      "id": "S22",
+      "pass": true,
+      "expected": "S05=2026-01-31T10:00:00Z / S10=2026-03-02T09:00:00Z (exact)",
+      "actual": "S05=2026-01-31T10:00:00Z S10=2026-03-02T09:00:00Z"
+    },
+    {
+      "id": "S23",
+      "pass": true,
+      "expected": "empty/whitespace ids and ?memberId= all 400/invalid_request",
+      "actual": "bookId='' 400/invalid_request / memberId='   ' 400/invalid_request / ?memberId= 400/invalid_request"
+    },
+    {
+      "id": "S19",
+      "pass": true,
+      "expected": "restart-survives (avail/loans/status equal)",
+      "actual": "avail 0->0 loans 3->3 ids-equal=True"
+    },
+    {
+      "id": "S20",
+      "pass": true,
+      "expected": "median<300ms over 50 seq POST",
+      "actual": "median=5.9ms n=50"
+    }
+  ],
+  "oracle": "forward-01 fixed oracle S01-S20",
+  "pass": 23
+}
