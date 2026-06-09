@@ -2,23 +2,28 @@
 # 使い方: pwsh oracle/fixed-oracle.ps1 -FactoryDir <factory root> -Port 5211 -ResultFile result-opus.json
 # 期待値の典拠は bomdd/41-fixed-oracle.yaml(=仕様 20-spec.md rev1)。
 param(
-  [Parameter(Mandatory = $true)][string]$FactoryDir,
+  [string]$FactoryDir = '',
   [int]$Port = 5210,
-  [string]$ResultFile = "result.json"
+  [string]$ResultFile = "result.json",
+  [switch]$SelfTest
 )
 $ErrorActionPreference = 'Stop'
 $base = "http://127.0.0.1:$Port"
-$apiProj = Join-Path $FactoryDir 'src/Library.Api'
-if (-not (Test-Path $apiProj)) { throw "src/Library.Api not found under $FactoryDir" }
 
-Write-Host "== build =="
-dotnet build $apiProj -c Release --nologo -v q | Out-Host
-if ($LASTEXITCODE -ne 0) { throw "build failed" }
-$dll = Get-ChildItem -Recurse (Join-Path $apiProj 'bin/Release') -Filter 'Library.Api.dll' | Select-Object -First 1
-if (-not $dll) { throw "Library.Api.dll not found" }
+if (-not $SelfTest) {
+  if (-not $FactoryDir) { throw "-FactoryDir is required (or use -SelfTest)" }
+  $apiProj = Join-Path $FactoryDir 'src/Library.Api'
+  if (-not (Test-Path $apiProj)) { throw "src/Library.Api not found under $FactoryDir" }
 
-$dbPath = Join-Path ([System.IO.Path]::GetTempPath()) ("bomdd_lend_{0}_{1}.db" -f $Port, [guid]::NewGuid().ToString('N').Substring(0, 8))
-foreach ($f in @($dbPath, "$dbPath-wal", "$dbPath-shm")) { if (Test-Path $f) { Remove-Item -Force $f } }
+  Write-Host "== build =="
+  dotnet build $apiProj -c Release --nologo -v q | Out-Host
+  if ($LASTEXITCODE -ne 0) { throw "build failed" }
+  $dll = Get-ChildItem -Recurse (Join-Path $apiProj 'bin/Release') -Filter 'Library.Api.dll' | Select-Object -First 1
+  if (-not $dll) { throw "Library.Api.dll not found" }
+
+  $dbPath = Join-Path ([System.IO.Path]::GetTempPath()) ("bomdd_lend_{0}_{1}.db" -f $Port, [guid]::NewGuid().ToString('N').Substring(0, 8))
+  foreach ($f in @($dbPath, "$dbPath-wal", "$dbPath-shm")) { if (Test-Path $f) { Remove-Item -Force $f } }
+}
 
 $script:apiProc = $null
 function Start-Api {
@@ -62,14 +67,16 @@ function Add-Result { param([string]$Id, [bool]$Pass, [string]$Expected, [string
   Write-Host ("  [{0}] {1}  exp: {2}  act: {3}" -f $Id, $mark, $Expected, $Actual)
 }
 function Test-ErrorShape { param($Res, [int]$Status, [string]$Code)
+  # 注意: PowerShell の変数名は大文字小文字を区別しない。ローカル変数に $code を使うと
+  # パラメータ $Code を上書きする(CHEAT-F01-H002。セルフテストが凍結前に捕捉)
   $ok = ($Res.status -eq $Status)
-  $code = ''
+  $actualCode = ''
   if ($Res.body -and $Res.body.ContainsKey('error') -and $Res.body.error) {
-    $code = [string]$Res.body.error.code
-    $msg = [string]$Res.body.error.message
-    $ok = $ok -and ($code -eq $Code) -and (-not [string]::IsNullOrEmpty($msg))
+    $actualCode = [string]$Res.body.error.code
+    $actualMsg = [string]$Res.body.error.message
+    $ok = $ok -and ($actualCode -ceq $Code) -and (-not [string]::IsNullOrEmpty($actualMsg))
   } else { $ok = $false }
-  return @{ ok = $ok; desc = "$($Res.status)/$code" }
+  return @{ ok = $ok; desc = "$($Res.status)/$actualCode" }
 }
 function Test-Instant { param([string]$A, [string]$B)
   try {
@@ -77,6 +84,27 @@ function Test-Instant { param([string]$A, [string]$B)
     $db2 = [datetimeoffset]::Parse($B, [cultureinfo]::InvariantCulture)
     return ($da.UtcTicks -eq $db2.UtcTicks)
   } catch { return $false }
+}
+
+# --- 治具セルフテスト(rev2 で必須化。凍結前に PASS を確認する。CHEAT-F01-H001 対策) ---
+if ($SelfTest) {
+  Write-Host '== jig self-test =='
+  $fails = @()
+  if (-not (Test-Instant '2026-01-31T10:00:00Z' '2026-01-31T10:00:00.000Z')) { $fails += 'instant-frac-equal' }
+  if (Test-Instant '2026-01-31T10:00:00Z' '2026-01-31T11:00:00Z') { $fails += 'instant-diff' }
+  $j = '{"t":"2026-01-31T10:00:00Z"}' | ConvertFrom-Json -AsHashtable -DateKind String
+  if (($j.t -isnot [string]) -or ($j.t -cne '2026-01-31T10:00:00Z')) { $fails += 'datekind-string-raw' }
+  $er = @{ status = 404; body = @{ error = @{ code = 'not_found'; message = 'x' } }; raw = '' }
+  $t = Test-ErrorShape $er 404 'not_found'; if (-not $t.ok) { $fails += 'errorshape-positive' }
+  $t = Test-ErrorShape $er 404 'invalid_request'; if ($t.ok) { $fails += 'errorshape-negative' }
+  $er2 = @{ status = 404; body = @{ error = @{ code = 'not_found'; message = '' } }; raw = '' }
+  $t = Test-ErrorShape $er2 404 'not_found'; if ($t.ok) { $fails += 'errorshape-empty-message' }
+  $arr = @('ln_b', 'ln_B', 'ln_a'); [Array]::Sort($arr, [System.StringComparer]::Ordinal)
+  if (($arr -join ',') -ne 'ln_B,ln_a,ln_b') { $fails += 'ordinal-sort' }
+  if ('bk_8bcddd2c2299438e9193fbcf161174bf' -notmatch '^(bk|mb|ln)_[0-9a-f]{32}$') { $fails += 'id-regex-positive' }
+  if ('bk_0000000001' -match '^(bk|mb|ln)_[0-9a-f]{32}$') { $fails += 'id-regex-negative' }
+  if ($fails.Count -eq 0) { Write-Host 'SELF-TEST: PASS'; exit 0 }
+  Write-Host ("SELF-TEST: FAIL -> {0}" -f ($fails -join ', ')); exit 1
 }
 
 $probes = @{ ids = @(); datetimeEcho = @(); extraFields = @{}; errorMessages = @(); latencyMs = $null }
@@ -166,6 +194,7 @@ Add-Result 'S09' $t.ok '400/invalid_request (+00:00)' $t.desc
 $r = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $eve; loanedAtUtc = '2026-03-02T09:00:00.123Z' }
 $ok = ($r.status -eq 201)
 Add-Result 'S10' $ok '201 (.123Z accepted)' ("{0}" -f $r.status)
+$s10loan = $r   # S22(出力形式)で使用
 if ($ok) { $probes.datetimeEcho += [string]$r.body.loanedAtUtc }
 
 # 以降のケースはシード(貸出作成)に依存する。製品側 blocker でシードが失敗した場合、
@@ -247,6 +276,29 @@ if ($r.status -eq 200 -and $r.body -and $r.body.ContainsKey('items')) {
   Add-Result 'S18' $false 'order + shape' ("status={0} items missing" -f $r.status)
 }
 
+# --- S21 ID 形式(v2/rev2 で昇格) ---
+$idPattern = '^(bk|mb|ln)_[0-9a-f]{32}$'
+$idsToCheck = @($book1, $alice, $loan1)
+$badIds = @($idsToCheck | Where-Object { $_ -cnotmatch $idPattern })
+$ok = ($badIds.Count -eq 0)
+Add-Result 'S21' $ok 'prefix + 32 lowercase hex' ("checked={0} bad={1}" -f $idsToCheck.Count, ($badIds -join ','))
+
+# --- S22 応答日時の出力形式(v2/rev2 で昇格。秒精度・小数秒なし・切り捨て) ---
+$echo05 = [string]$rLoan1.body.loanedAtUtc
+$echo10 = [string]$s10loan.body.loanedAtUtc
+$ok = ($echo05 -ceq '2026-01-31T10:00:00Z') -and ($echo10 -ceq '2026-03-02T09:00:00Z')
+Add-Result 'S22' $ok 'S05=2026-01-31T10:00:00Z / S10=2026-03-02T09:00:00Z (exact)' ("S05={0} S10={1}" -f $echo05, $echo10)
+
+# --- S23 空文字・空白 → 400(v2/rev2 で昇格) ---
+$r1 = Invoke-Api POST '/v1/loans' @{ bookId = ''; memberId = $alice; loanedAtUtc = '2026-03-05T00:00:00Z' }
+$t1 = Test-ErrorShape $r1 400 'invalid_request'
+$r2 = Invoke-Api POST '/v1/loans' @{ bookId = $book1; memberId = '   '; loanedAtUtc = '2026-03-05T00:00:00Z' }
+$t2 = Test-ErrorShape $r2 400 'invalid_request'
+$r3 = Invoke-Api GET '/v1/loans?memberId='
+$t3 = Test-ErrorShape $r3 400 'invalid_request'
+$ok = $t1.ok -and $t2.ok -and $t3.ok
+Add-Result 'S23' $ok 'empty/whitespace ids and ?memberId= all 400/invalid_request' ("bookId='' {0} / memberId='   ' {1} / ?memberId= {2}" -f $t1.desc, $t2.desc, $t3.desc)
+
 # --- スナップショット(S19 用) ---
 $snapBook1 = Invoke-Api GET "/v1/books/$book1"
 $snapJudy = Invoke-Api GET "/v1/loans?memberId=$judy"
@@ -299,7 +351,7 @@ Add-Result 'S20' $ok 'median<300ms over 50 seq POST' ("median={0}ms n={1}" -f $m
 $probes.latencyMs = $median
 } catch {
   $executed = @($script:results | ForEach-Object { $_.id })
-  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S19','S20')) {
+  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S21','S22','S23','S19','S20')) {
     if ($executed -notcontains $cid) {
       Add-Result $cid $false 'per 41-fixed-oracle.yaml' ("not-executed: seed blocked ({0})" -f $_.Exception.Message)
     }

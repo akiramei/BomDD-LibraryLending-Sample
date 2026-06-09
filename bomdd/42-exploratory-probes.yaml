@@ -9,12 +9,10 @@ bomdd:
 exploratory_probes:
   - id: P-01
     dimension: ID 形式(接頭辞以降のアルゴリズム・長さ)
-    sweep_ref: 32-mbom.yaml silence_sweep「識別子(形式)」
-    method: S01/S02/S05 で発行された id を記録し工場間で比較
+    status: promoted-to-oracle(rev2 → S21。forward-01 の分散をユーザー裁定で固定)
   - id: P-02
     dimension: 応答日時の小数秒桁・正規化
-    sweep_ref: silence_sweep「日時(応答小数秒)」
-    method: S05 の loanedAtUtc echo と S10 の応答を記録
+    status: promoted-to-oracle(rev2 → S22)
   - id: P-03
     dimension: 仕様列挙外の追加応答フィールド
     sweep_ref: silence_sweep「応答フィールド集合」

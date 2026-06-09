@@ -8,7 +8,8 @@ bomdd:
 # 凍結: tag forward-01-input-bom 時点で不変(収束ループ中は変更しない)
 
 fixed_oracle:
-  frozen_since: forward-01-input-bom
+  frozen_since: forward-01-rev2-input-bom   # v2。v1(S01-S20)は forward-01-input-bom。S21-S23 はループ境界での昇格(プローブ→オラクル昇格規律)
+  self_test: oracle/fixed-oracle.ps1 -SelfTest(判定ヘルパ・DateKind 挙動・序数ソートを合成データで検証。rev2 で必須化=CHEAT-F01-H001 対策。凍結前に PASS を確認)
   equivalence_rules:
     - id: EQ-001
       compares:
@@ -47,3 +48,7 @@ fixed_oracle:
     - { id: S18, scenario: 一覧の順序と形(active/returned混在), expect: '瞬時昇順+id序数 / activeにreturnedAtUtc・fineAmount無し / 両status含む', spec_ref: §2.6, depth: L3 }
     - { id: S19, scenario: 再起動永続性(貸出作成→kill→再起動), expect: '貸出・在庫・返却状態が API から同値で取得できる', spec_ref: §2.7, depth: L3 }
     - { id: S20, scenario: NFR レイテンシ(直列50件のPOST /v1/loans), expect: '中央値 < 300ms', spec_ref: NFR-001, depth: L3 }
+    # --- v2(rev2 ループ境界で昇格。ユーザー裁定 Q1-Q3) ---
+    - { id: S21, scenario: ID 形式(S01/S02/S05 の発行 id), expect: '^(bk|mb|ln)_[0-9a-f]{32}$', spec_ref: INV-5(rev2), depth: L2 }
+    - { id: S22, scenario: 応答日時の出力形式(S05 echo と S10 の .123Z 入力), expect: 'yyyy-MM-ddTHH:mm:ssZ 文字列 exact(S05=2026-01-31T10:00:00Z / S10=秒未満切り捨て 2026-03-02T09:00:00Z)', spec_ref: §1 出力形式(rev2), depth: L2 }
+    - { id: S23, scenario: 空文字・空白の bookId / ?memberId=, expect: 'すべて 400 invalid_request', spec_ref: §2.4-1/§2.6(rev2), depth: L2 }

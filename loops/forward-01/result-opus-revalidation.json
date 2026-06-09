@@ -1,0 +1,163 @@
+{
+  "pass": 22,
+  "oracle": "forward-01 fixed oracle S01-S20",
+  "results": [
+    {
+      "pass": true,
+      "expected": "201 bk_* copies=2 avail=2",
+      "actual": "201 id=bk_eb49c48ba0214f6f9697b209f75be257 avail=2",
+      "id": "S01"
+    },
+    {
+      "pass": true,
+      "expected": "201 mb_*",
+      "actual": "201 id=mb_ad098fa0a6b049debdaf947e21ac5085",
+      "id": "S02"
+    },
+    {
+      "pass": true,
+      "expected": "400/invalid_request",
+      "actual": "400/invalid_request",
+      "id": "S03"
+    },
+    {
+      "pass": true,
+      "expected": "404/not_found",
+      "actual": "404/not_found",
+      "id": "S04"
+    },
+    {
+      "pass": true,
+      "expected": "201 due=2026-02-14 active",
+      "actual": "201 due=2026-02-14 status=active",
+      "id": "S05"
+    },
+    {
+      "pass": true,
+      "expected": "2nd=201, 3rd=409/no_copies_available",
+      "actual": "2nd=201 3rd=409/no_copies_available",
+      "id": "S06"
+    },
+    {
+      "pass": true,
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded",
+      "actual": "1-3=201,201,201 4th=409/loan_limit_exceeded",
+      "id": "S07"
+    },
+    {
+      "pass": true,
+      "expected": "400/invalid_request (+09:00)",
+      "actual": "400/invalid_request",
+      "id": "S08"
+    },
+    {
+      "pass": true,
+      "expected": "400/invalid_request (+00:00)",
+      "actual": "400/invalid_request",
+      "id": "S09"
+    },
+    {
+      "pass": true,
+      "expected": "201 (.123Z accepted)",
+      "actual": "201",
+      "id": "S10"
+    },
+    {
+      "pass": true,
+      "expected": "200 fine=0 (due-day 23:59:59Z)",
+      "actual": "200 fine=0",
+      "id": "S11"
+    },
+    {
+      "pass": true,
+      "expected": "200 fine=100 (due+1 00:00:00Z)",
+      "actual": "200 fine=100",
+      "id": "S12"
+    },
+    {
+      "pass": true,
+      "expected": "200 fine=300 (due+3)",
+      "actual": "200 fine=300",
+      "id": "S13"
+    },
+    {
+      "pass": true,
+      "expected": "409/already_returned",
+      "actual": "409/already_returned",
+      "id": "S14"
+    },
+    {
+      "pass": true,
+      "expected": "409/member_overdue_blocked (due+1)",
+      "actual": "409/member_overdue_blocked",
+      "id": "S15"
+    },
+    {
+      "pass": true,
+      "expected": "201 (due-day not blocked)",
+      "actual": "201",
+      "id": "S16"
+    },
+    {
+      "pass": true,
+      "expected": "400/invalid_request (instant past)",
+      "actual": "400/invalid_request",
+      "id": "S17"
+    },
+    {
+      "pass": true,
+      "expected": "order(oldest,id-ordinal) + shape",
+      "actual": "count=3 order=True shape=True",
+      "id": "S18"
+    },
+    {
+      "pass": true,
+      "expected": "prefix + 32 lowercase hex",
+      "actual": "checked=3 bad=",
+      "id": "S21"
+    },
+    {
+      "pass": true,
+      "expected": "S05=2026-01-31T10:00:00Z / S10=2026-03-02T09:00:00Z (exact)",
+      "actual": "S05=2026-01-31T10:00:00Z S10=2026-03-02T09:00:00Z",
+      "id": "S22"
+    },
+    {
+      "pass": false,
+      "expected": "empty/whitespace ids and ?memberId= all 400/invalid_request",
+      "actual": "bookId='' 404/not_found / memberId='   ' 404/not_found / ?memberId= 404/not_found",
+      "id": "S23"
+    },
+    {
+      "pass": true,
+      "expected": "restart-survives (avail/loans/status equal)",
+      "actual": "avail 0->0 loans 3->3 ids-equal=True",
+      "id": "S19"
+    },
+    {
+      "pass": true,
+      "expected": "median<300ms over 50 seq POST",
+      "actual": "median=6.1ms n=50",
+      "id": "S20"
+    }
+  ],
+  "total": 23,
+  "factory": "C:\\Users\\akira\\source\\repos\\BomDD-LibraryLending-Sample\\loops\\forward-01\\factory-01-opus",
+  "probes": {
+    "datetimeEcho": [
+      "2026-01-31T10:00:00Z",
+      "2026-03-02T09:00:00Z"
+    ],
+    "errorMessages": [
+      "title must be a string of length 1..200",
+      "book not found"
+    ],
+    "latencyMs": 6.1,
+    "extraFields": {},
+    "ids": [
+      "bk_eb49c48ba0214f6f9697b209f75be257",
+      "mb_ad098fa0a6b049debdaf947e21ac5085",
+      "ln_dae031cbb0b449b6b3d0a3a48426803e"
+    ]
+  }
+}

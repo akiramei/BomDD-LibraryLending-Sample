@@ -65,8 +65,11 @@ mbom:
         path: test/Library.Acceptance
         type: dotnet-console-acceptance
       scope:
-        required: Control Plan の unit 行(CP-CORE-*)の test_vectors を全て被覆(プロセス外形なし=Library.Core を直接呼ぶ)
-        optional: L3 行(API契約・再起動・NFR)の自己被覆は任意。実装する場合は Library.Api をサブプロセスとして自律起動・停止する(検査の本体は設計者側オラクルが行う)
+        required: |
+          ① Control Plan の unit 行(CP-CORE-*)の test_vectors を全て被覆(Library.Core を直接呼ぶ)
+          ② L1 API スモーク(rev2 で必須化=CHEAT-F01-P002 対策): Library.Api をサブプロセスとして起動し、
+             全6エンドポイントへ正常系1本ずつ投げて期待 status を確認して停止する
+        optional: L3 行(再起動・NFR 等)の自己被覆は任意(検査の本体は設計者側オラクルが行う)
       verifies:
         - M-CORE-LENDING-001
         - M-API-SQLITE-001
@@ -113,9 +116,9 @@ silence_sweep:
   - { dimension: 範囲・境界値, decision: specified, where: 仕様§2.1/2.3(1..200等)・CP test_vectors }
   - { dimension: 既定値・継承, decision: specified, where: LIBRARY_DB_PATH 未設定時 ./library.db }
   - { dimension: 識別子(接頭辞), decision: specified, where: INV-5 / K-ID-001 }
-  - { dimension: 識別子(形式・一意性根拠), decision: exploratory, note: probe P-01。選択はずる報告 }
+  - { dimension: 識別子(形式・一意性根拠), decision: specified, where: INV-5 rev2 / K-ID-001 v2(32桁小文字hex。forward-01 裁定で昇格) }
   - { dimension: 日時(受理形式), decision: specified, where: K-UTC-ISO8601-001 }
-  - { dimension: 日時(応答小数秒), decision: exploratory, note: probe P-02。echo 不要 }
+  - { dimension: 日時(応答小数秒), decision: specified, where: 仕様§1 出力形式(秒精度固定。forward-01 裁定で昇格) }
   - { dimension: 座標系・基準系, decision: specified, where: UTC暦日・サーバ時計不使用(INV-3) }
   - { dimension: エラー語彙・status対応, decision: specified, where: 仕様§2.8 / K-HTTP-REST-001 }
   - { dimension: 検証順序, decision: specified, where: 仕様§2.4/2.5 判定順序 }

@@ -119,6 +119,7 @@ ebom:
         consumers: [E-HTTP-CONTRACT-001, E-DUE-FINE-001, E-OVERDUE-BLOCK-001]
       invariants:
         - 大文字 Z のみ・小数秒 0〜7 桁。+00:00 を含む非Z表記・小文字z・日付のみは invalid_request
+        - 出力は yyyy-MM-ddTHH:mm:ssZ(秒精度)に正規化(rev2。秒未満切り捨て)
         - 未来日時は受理。サーバ時計は使わない
       acceptance_refs: [CP-API-DATETIME-001]
 
@@ -129,7 +130,7 @@ ebom:
       external_source_ref: K-ID-001
       kbom_refs: [K-ID-001]
       invariants:
-        - 接頭辞 bk_ / mb_ / ln_(INV-5)。接頭辞以降は実装裁量(選択はずる報告対象)
+        - ID = 接頭辞(bk_/mb_/ln_)+ 32桁小文字hex(INV-5 rev2。公開契約として固定)
       acceptance_refs: [CP-API-CONTRACT-001]
 
 nfr_targets:

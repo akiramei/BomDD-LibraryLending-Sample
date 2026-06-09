@@ -7,6 +7,7 @@
 図書館の蔵書貸出を管理する HTTP API。**蔵書(book)**は部数(copies)を持つ。**会員(member)**は蔵書を**貸出(loan)**し、**返却(return)**する。返却されていない貸出を **active loan** と呼ぶ。
 
 - **日時形式(入力)**: `yyyy-MM-ddTHH:mm:ssZ` または小数秒付き `yyyy-MM-ddTHH:mm:ss.fZ`〜`.fffffffZ`(小数秒 1〜7 桁)。**大文字 `Z` のみ**受理する。それ以外 — 小文字 `z`、数値オフセット(`+09:00`、**`+00:00` を含む**)、オフセット無し、日付のみ — はすべて **400 `invalid_request`**。
+- **日時形式(出力・rev2 で固定)**: 応答の日時は **`yyyy-MM-ddTHH:mm:ssZ`(秒精度・小数秒なし)** に正規化する。小数秒付き入力は受理するが、秒未満を**切り捨て**て保存・応答する(ドメイン判定は秒未満を使わない)。`dueDateUtc` は `yyyy-MM-dd` の 10 文字。
 - **サーバ時計は一切使わない**: 時刻に依存する判定はすべてリクエストが運ぶ日時(loanedAtUtc / returnedAtUtc)だけで行う。**未来の日時も受理する**(窓口の後入力ユースケース)。
 - **UTC 暦日(date part)**: 日時の `yyyy-MM-dd` 部分。期限・延滞の判定は UTC 暦日の比較で行う。
 - **暦日差**: 2 つの暦日を日付として引いた日数(例 `2026-02-15 − 2026-02-14 = 1`)。
@@ -34,13 +35,13 @@
 - リクエスト: `{ "bookId": string, "memberId": string, "loanedAtUtc": 日時(§1) }`
 - 成功: **201** `{ "id": string, "bookId": string, "memberId": string, "loanedAtUtc": string, "dueDateUtc": "yyyy-MM-dd", "status": "active" }`
 - **判定順序(上から評価し、最初に該当したエラーを返す)**:
-  1. 入力検証(フィールド欠落・型不正・日時形式違反)→ **400** `invalid_request`。**bookId/memberId の値の形式検証はしない**(値があれば次段の存在確認へ。空文字列も存在確認の対象=404 側)。
+  1. 入力検証(フィールド欠落・型不正・日時形式違反)→ **400** `invalid_request`。bookId/memberId は**非空の文字列**であること(欠落・null・非文字列・**空文字・空白のみ** → 400。rev2 で固定: 「存在しない ID」と「入力不正」を混ぜない)。それ以外の値の形式検証はせず、次段の存在確認へ。
   2. bookId / memberId 不在 → **404** `not_found`(両方不在でも code は同じ `not_found`)
   3. 会員が延滞中 → **409** `member_overdue_blocked`。**延滞中** = その会員の active loan の**いずれか 1 件でも** `UTC暦日(loanedAtUtc) > dueDateUtc`(INV-3)
   4. 会員の active loan が 3 件(INV-2)→ **409** `loan_limit_exceeded`
   5. 蔵書の availableCopies == 0(INV-1)→ **409** `no_copies_available`
 - `dueDateUtc` = UTC暦日(loanedAtUtc) + 14日(暦日加算。例 `1/31 → 2/14`、`12/25 → 翌年 1/8`)。**`yyyy-MM-dd` の 10 文字文字列**(時刻部なし)。
-- `loanedAtUtc`(応答)は受理した入力をそのまま返すこと(echo)を要求しない。**同一瞬時を表す ISO-8601 literal-Z であればよい**(小数秒の桁は実装裁量=探索次元)。
+- `loanedAtUtc`(応答)= 入力と同一瞬時(秒未満切り捨て)を **`yyyy-MM-ddTHH:mm:ssZ` 固定形式**で返す(§1 出力形式。rev2 で固定)。
 
 ### 2.5 返却 — POST /v1/loans/{id}/return (REQ-003, REQ-007)
 - リクエスト: `{ "returnedAtUtc": 日時(§1) }`
@@ -57,7 +58,7 @@
 - 成功: **200** `{ "items": [ 貸出オブジェクト ] }`(全件。ページングなし)
 - **並び順**: `loanedAtUtc` の**瞬時(パース後の時刻値)昇順**。同一瞬時は `id` の**序数(ordinal)文字列比較**で昇順。
 - **オブジェクト形**: active の貸出は 2.4 成功形(`returnedAtUtc`・`fineAmount` を**含めない**)。returned の貸出は 2.5 成功形(両フィールドを含む)。
-- memberId 欠落(クエリパラメータ自体が無い)→ **400** `invalid_request` / memberId 不在 → **404** `not_found`。**空文字列(`?memberId=`)は「値あり」として存在確認の対象 = 404**(§2.4 判定1 の規則と一貫)。
+- memberId 欠落(クエリパラメータ自体が無い)・**空文字・空白のみ(`?memberId=`)** → **400** `invalid_request`(rev2 で §2.4 判定1 と同じ「非空文字列」規則に統一)/ memberId 不在 → **404** `not_found`。
 - active と returned の両方を含む。
 
 ### 2.7 永続化 (REQ-005)
@@ -70,9 +71,9 @@
 ```json
 { "error": { "code": "<machine-readable>", "message": "<human-readable>" } }
 ```
-- **code の全列挙**(これ以外を返さない): `invalid_request` / `not_found` / `no_copies_available` / `loan_limit_exceeded` / `member_overdue_blocked` / `already_returned`
+- **code の全列挙**(これ以外を返さない): `invalid_request` / `not_found` / `no_copies_available` / `loan_limit_exceeded` / `member_overdue_blocked` / `already_returned` / **`internal_error`**(rev2 で追加: サーバ内部エラー用の共通語彙。4xx 業務語彙とは別)
 - `message` は非空文字列。内容・言語は検査しない。
-- HTTP 500(サーバ内部エラー)は**契約違反**であり、上記列挙の対象外(受入では発生自体が fail)。
+- HTTP 500 が発生した場合も応答は共通封筒 + `code=internal_error` とする。ただし**受入では 500 の発生自体が fail**(固定オラクルは 500 を積極的に注入・誘発しない)。
 
 ## 3. 不変条件
 | ID | 不変条件 | REQ |
@@ -81,7 +82,7 @@
 | INV-2 | 会員ごとに active loan 数 ≤ 3 | REQ-002 |
 | INV-3 | 延滞判定は UTC 暦日比較: 「延滞中」= active loan のいずれかが `UTC暦日(基準時刻) > dueDateUtc`。基準時刻は操作のリクエストが運ぶ(新規貸出時 = その loanedAtUtc)。サーバ時計は使わない | REQ-003, REQ-004 |
 | INV-4 | 貸出の状態機械は active → returned の一方向のみ。returned からの遷移は無い | REQ-007 |
-| INV-5 | ID は接頭辞付き文字列: 蔵書 `bk_`、会員 `mb_`、貸出 `ln_`(接頭辞以降の形式は実装裁量。ただし §2.6 の序数比較で順序が定まる) | REQ-006 |
+| INV-5 | ID = 接頭辞(蔵書 `bk_`・会員 `mb_`・貸出 `ln_`)+ **32桁の小文字16進数**(GUID "N" 形式。rev2 で固定: 公開契約のため)。並び順の意味は ID に依存させない(§2.6 の第一キーは loanedAtUtc) | REQ-006 |
 
 ## 4. 沈黙次元の第1回掃討(silence-checklist)
 | 次元 | 宣言 | 内容/参照 |
@@ -91,10 +92,10 @@
 | 丸め | specified | 整数演算のみ(§1) |
 | エラー語彙 | specified | §2.8 全列挙+message 非空+500 は契約外 |
 | status code 対応 | specified | §2.4/2.5 判定順序込み(両節とも「上から評価」明記) |
-| ID | 一部 specified | 接頭辞=specified(INV-5)。アルゴリズム・長さ=exploratory(プローブ観測) |
+| ID | specified(rev2 で昇格) | 接頭辞+32桁小文字hex(INV-5)。forward-01 探索層の分散をユーザー裁定で固定 |
 | 一覧順序 | specified | 瞬時昇順+id 序数昇順(§2.6) |
 | 応答フィールド集合 | specified(一部 deferred) | 列挙フィールドは必須。active は returnedAtUtc/fineAmount を含めない(§2.6)。**追加フィールドの可否**は M-BOM で宣言 |
-| 応答日時の小数秒 | exploratory | echo は要求しない(§2.4)。桁はプローブ観測 |
+| 応答日時の小数秒 | specified(rev2 で昇格) | 出力は秒精度固定・小数秒なし(§1)。入力は 0〜7 桁許容のまま |
 | 未来日時 | specified | 受理(§1 サーバ時計不使用) |
 | 永続化(配置) | specified | LIBRARY_DB_PATH(§2.7) |
 | 内部スキーマ | out-of-scope | 挙動で検査(§2.7) |
@@ -117,3 +118,4 @@
 ## ゲート記録(G2/G2')
 - **G2 マルチリーダー監査(実施 2026-06-10)**: リーダー3体(opus/sonnet/haiku、互いに非開示・仕様のみ供与)。要求・不変条件の抽出は 3 体とも一致(振る舞いは一意に読めた)。**曖昧指摘: opus 17 / sonnet 13 / haiku 17 件**。3 体が独立に重ねた指摘(=最優先で固定): `+00:00` の扱い / ISO 許容形(小文字z・小数秒)/ 返却過去判定の粒度(暦日 vs 瞬時)/ 一覧 id 昇順の定義(INV-5 裁量との不整合)/ 延滞 any/all / 一覧の「同形」(active の returnedAtUtc/fineAmount)。単独だが採用: 未来日時の受理(sonnet)/ 500 の応答形は契約外(opus)/ 同一 returnedAtUtc 再送も 409(haiku)/ message 非空(sonnet)。**Loop7 の「振る舞いは一致し精度で割れる」がフォワード仕様でも再現**(割れたのは期待値の精度次元)。本 rev1 で全て固定または明示的に exploratory/out-of-scope 化。再監査は省略し G3 ドライランで代替(コスト判断。差分は手法ずれとして cheat-log に記録)。
 - **G2' MeasurementCapability**: 全 REQ/NFR = adequate(HTTP 黒箱+再起動 execution+L3 計測で観測可能)。例外: **INV-1 の同時要求の原子性 = insufficient-depth**(並行検査治具が無い。charter でスコープ外宣言済み、次段へ)。unmeasurable なし。承認者必要なし(知覚特性なし)。
+- **rev2(2026-06-10, Phase 5 ユーザー裁定による仕様昇格)**: Q1 ID 形式=接頭辞+32桁小文字hex / Q2 応答日時=秒精度固定 / Q3 null・欠落・空文字・空白=400 に統一 / Q4 `internal_error` を共通語彙として列挙に追加。オラクルへの昇格は**ループ境界で実施**(v2 = S01–S23、tag `forward-01-rev2-input-bom` で再凍結)。Q5(haiku)=工場能力として記録のみ、再試行は別測定 `haiku-retry` 扱い。

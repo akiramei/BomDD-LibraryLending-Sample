@@ -33,7 +33,7 @@ kbom:
       source: 仕様 §2.8(事前抽出で RFC 9457 problem+json に分岐すると判明したため明示固定)
       managed_knowledge:
         - 'エラー応答は常に { "error": { "code": string, "message": string } }。RFC 9457 application/problem+json は使わない'
-        - code は仕様 §2.8 の 6 種のみ。message は非空(内容は自由)
+        - code は仕様 §2.8 の 7 種のみ(rev2 で internal_error を共通語彙として追加。500 時も共通封筒+internal_error。ただし 500 の発生自体が受入 fail)。message は非空(内容は自由)
       risk_if_implicit: problem+json 派と独自形式派で応答スキーマが分岐する
       consumers: [E-ERROR-SCHEMA-001]
 
@@ -60,7 +60,7 @@ kbom:
         - '拒否(400 invalid_request): 小文字 z / 数値オフセット(+09:00, +00:00 含む)/ オフセット無し / 日付のみ'
         - 実装注意: DateTime/DateTimeOffset の既定 Parse はオフセットを受理してしまう。厳密フォーマット指定(ParseExact 等)で検証する
         - 期限・延滞は UTC 暦日比較(DateOnly 推奨)。返却の過去判定(§2.5-4)のみ瞬時比較
-        - 応答の日時は literal-Z UTC。dueDateUtc は yyyy-MM-dd の 10 文字
+        - 応答の日時は **yyyy-MM-ddTHH:mm:ssZ(秒精度・小数秒なし)に正規化**(rev2 で固定。小数秒付き入力は秒未満切り捨て)。dueDateUtc は yyyy-MM-dd の 10 文字
         - サーバ時計(UtcNow)はドメイン判定に使わない
       risk_if_implicit: 既定パーサがオフセットを受理し、24時間×14 で期限を計算する工場が出る
       consumers: [E-DATETIME-POLICY-001, E-DUE-FINE-001, E-OVERDUE-BLOCK-001]
@@ -83,11 +83,12 @@ kbom:
     - id: K-ID-001
       name: ID generation policy
       knowledge_kind: domain-convention
-      version: v1
-      source: 仕様 INV-5
+      version: v2    # rev2: forward-01 探索層の分散(GUID32×2 vs 連番)をユーザー裁定で固定
+      source: 仕様 INV-5(rev2)
       managed_knowledge:
         - 接頭辞: 蔵書 bk_ / 会員 mb_ / 貸出 ln_
+        - 接頭辞以降は **32桁の小文字16進数**(Guid.NewGuid().ToString("N") 相当)に固定
         - サーバ生成のみ(クライアント指定 ID は受け付けない)
-        - 接頭辞以降の形式(GUID/hex/連番/ULID 風文字列)は実装裁量。ただし選択をずる報告すること(探索次元)
-      risk_if_implicit: ID 形式が工場ごとに分岐する(意図的に探索層へ置く)
+        - 並び順の意味を ID に依存させない(一覧の第一キーは loanedAtUtc)
+      risk_if_implicit: ID 形式が工場ごとに分岐する(forward-01 で実測: GUID32 ×2 / 連番10桁)
       consumers: [E-ID-POLICY-001]
