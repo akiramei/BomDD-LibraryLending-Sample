@@ -29,7 +29,7 @@ routing:
       name: 自己受入(Control Plan の unit 行 test_vectors を全て被覆。緑が納品条件。ただし自己受入緑≠合格)
       input: [M-ACCEPTANCE-HARNESS-001]
       command:
-        - dotnet build
+        - dotnet build Library.sln
         - dotnet run --project test/Library.Acceptance
       output: [acceptance log(test/Library.Acceptance の標準出力)]
     - order: 5

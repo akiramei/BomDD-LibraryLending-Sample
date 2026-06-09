@@ -84,7 +84,7 @@ control_plan:
       classification: surface
       depth: L3
       tolerance: status と code は exact。message は非空のみ
-      fixture: oracle/fixed-oracle.ps1(設計者側)+ test/Library.Acceptance(自己)
+      fixture: oracle/fixed-oracle.ps1(設計者側。自己受入での L3 被覆は任意=M-BOM scope 参照)
       oracle: 固定オラクル S1–S16 の契約期待との突合
       approver: automated
 

@@ -8,15 +8,16 @@
 - `bomdd/30-ebom.yaml` / `31-kbom.yaml` / `32-mbom.yaml` / `33-control-plan.yaml` / `34-routing.yaml`
 
 ## 製造対象(配置は M-BOM artifact.path の通り)
-- `src/Library.Core` — ドメイン判定の classlib(.NET 10)
-- `src/Library.Api` — ASP.NET Core minimal API(.NET 10)。**listen アドレスは ASPNETCORE_URLS に従う。DB パスは LIBRARY_DB_PATH(未設定時 ./library.db)**
-- `test/Library.Acceptance` — 自己受入コンソール(Control Plan の unit 行 test_vectors を全て被覆し、PASS/FAIL を標準出力)
+- ルートに `Library.sln`(全プロジェクトを含む。target framework は **net10.0 で統一**)
+- `src/Library.Core` — ドメイン判定の classlib
+- `src/Library.Api` — ASP.NET Core minimal API。**listen アドレスは ASPNETCORE_URLS に従う。DB パスは LIBRARY_DB_PATH(未設定時 ./library.db)**。未ハンドル例外で 500 を返さない設計とする(防御ミドルウェアの採用は裁量。採用したらずる報告)
+- `test/Library.Acceptance` — 自己受入コンソール。**必須範囲 = Control Plan の unit 行(CP-CORE-*)の test_vectors 全被覆**(Library.Core を直接呼ぶ。プロセス外形なし)。PASS/FAIL を標準出力し、FAIL があれば exit code 非0。L3 の自己被覆は任意(M-BOM scope 参照)
 
 ## 調達部品の規律
 NuGet パッケージは `Microsoft.Data.Sqlite 9.0.0` **のみ**使用可。これ以外が必要だと判断した場合は採用せず標準ライブラリで代替し、判断をずる報告する。
 
 ## 必須受入(自己受入)
-- `dotnet build` が警告以外で成功する
+- リポジトリルートで `dotnet build Library.sln` が成功する
 - `dotnet run --project test/Library.Acceptance` が全 PASS で exit code 0
 
 ## ずる報告(義務)

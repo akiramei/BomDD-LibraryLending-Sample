@@ -4,6 +4,9 @@ bomdd:
   layer: M-BOM
 
 mbom:
+  solution:
+    file: Library.sln           # リポジトリルートに置く。dotnet build はこれを対象にする
+    target_framework: net10.0   # 全プロジェクト共通(Core/Api/Acceptance)
   manufacturing_units:
     - id: M-CORE-LENDING-001
       ebom_refs:
@@ -60,14 +63,17 @@ mbom:
     - id: M-ACCEPTANCE-HARNESS-001
       artifact:
         path: test/Library.Acceptance
-        type: dotnet-console-acceptance(自己受入。Control Plan の unit 行 + 主要 L3 を被覆)
+        type: dotnet-console-acceptance
+      scope:
+        required: Control Plan の unit 行(CP-CORE-*)の test_vectors を全て被覆(プロセス外形なし=Library.Core を直接呼ぶ)
+        optional: L3 行(API契約・再起動・NFR)の自己被覆は任意。実装する場合は Library.Api をサブプロセスとして自律起動・停止する(検査の本体は設計者側オラクルが行う)
       verifies:
         - M-CORE-LENDING-001
         - M-API-SQLITE-001
 
 procurement:
   - package: Microsoft.Data.Sqlite
-    version: 9.0.0
+    version: 9.0.0    # この実験環境で NuGet 復元を確認済みのバージョンに意図的に固定(10.x への更新は ECO で扱う)
     rationale: 軽量・単一ファイル・BCL外で最小の永続化。実現性確認済(2026-06-10)
     license: MIT
     substitutable: false
