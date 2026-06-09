@@ -1,0 +1,60 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: Metrics
+
+# 規律: raw 一致率単独で報告しない。全通過=「現固定オラクル被覆で未観測差分ゼロ」と表現。
+
+metric_runs:
+  - loop: forward-01
+    factory: factory-01(opus)
+    bom_rev: rev1(tag forward-01-input-bom)
+    oracle_ref: bomdd/41-fixed-oracle.yaml@forward-01-input-bom(S01-S20)
+    raw_match: 20/20
+    blocker_diffs: 0
+    new_unspecified_diffs: 0          # 固定層に unspecified_bom_residue なし
+    specified_contract_miss: 0
+    exploratory_variance_count: 3     # ID形式 / 応答小数秒 / message文面
+    g3_dryrun_questions: 7
+    note: 現固定オラクル被覆で未観測差分ゼロ。NFR median 5.9ms
+  - loop: forward-01
+    factory: factory-02(sonnet)
+    bom_rev: rev1
+    oracle_ref: 同上
+    raw_match: 20/20
+    blocker_diffs: 0
+    new_unspecified_diffs: 0
+    specified_contract_miss: 0
+    exploratory_variance_count: 3
+    note: 現固定オラクル被覆で未観測差分ゼロ。NFR median 5.6ms
+  - loop: forward-01
+    factory: factory-03(haiku)
+    bom_rev: rev1
+    oracle_ref: 同上
+    raw_match: 6/20
+    blocker_diffs: 1                  # 貸出エンドポイント実行時全滅(根本原因1件が14ケースに波及)
+    new_unspecified_diffs: 0
+    specified_contract_miss: 14       # 根本原因は1件(S05-S07/S10 fail + S11-S20 シード不能)
+    exploratory_variance_count: 2
+    note: 工場能力(自己受入17/17緑のままAPI表面欠陥=CHEAT-F01-P002)。BOM起因の差分ではない
+
+exploratory_variance:                  # 合否非混在(分散の観測のみ)
+  - dimension: ID 形式(P-01)
+    values: { opus: 'GUID("N")32桁hex', sonnet: 'GUID(no-hyphen)32桁hex', haiku: '10桁ゼロパディング連番(静的カウンタ)' }
+  - dimension: 応答日時の小数秒(P-02)
+    values: { opus: '秒精度に正規化(0桁)', sonnet: '0桁に正規化', haiku: '7桁(DateTime.ToString("O"))' }
+  - dimension: 追加応答フィールド(P-03)
+    values: { opus: なし, sonnet: なし, haiku: 観測不能(貸出応答が常時エラー) }
+  - dimension: エラー message 文面(P-04)
+    values: { opus: '固定英短文', sonnet: '英文+ピリオド', haiku: '英文(大文字開始)' }
+  - dimension: 自己受入の被覆規模(参考)
+    values: { opus: '24(+L3自主スモーク)', sonnet: '22', haiku: '17(必須範囲のみ)' }
+
+process_metrics:
+  g2_readers: 3(opus/sonnet/haiku)
+  g2_ambiguity_findings: { opus: 17, sonnet: 13, haiku: 17, 共通指摘: 6 }
+  g3_questions: { blocker: 1, friction: 5, minor: 1, 補正後残: 0 }
+  kbom_pre_extraction: 実施(分岐候補 40+ 件を事前列挙→固定/explor./scope外に裁定)
+  convergence_loops_needed: 0          # opus/sonnet が rev1 で 0 差分(webapi の 2→3→0 と対照的に初回 0)
+  harness_cheats: 1(CHEAT-F01-H001)+ 頑健化1
+  process_cheats: 2(P001 G2再監査省略 / P002 自己受入範囲の盲点)

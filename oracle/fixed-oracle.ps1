@@ -49,7 +49,9 @@ function Invoke-Api {
   if ($null -ne $Body) { $p.Body = ($Body | ConvertTo-Json -Depth 6); $p.ContentType = 'application/json' }
   $r = Invoke-WebRequest @p
   $json = $null
-  if ($r.Content) { try { $json = $r.Content | ConvertFrom-Json -AsHashtable } catch {} }
+  # -DateKind String: ConvertFrom-Json の暗黙 DateTime 変換を抑止(検査器の表現結合バグ
+  # CHEAT-F01-H001 の修正。日時は raw 文字列のまま保持し、比較時に明示的にパースする)
+  if ($r.Content) { try { $json = $r.Content | ConvertFrom-Json -AsHashtable -DateKind String } catch {} }
   return @{ status = [int]$r.StatusCode; body = $json; raw = [string]$r.Content }
 }
 
@@ -166,6 +168,9 @@ $ok = ($r.status -eq 201)
 Add-Result 'S10' $ok '201 (.123Z accepted)' ("{0}" -f $r.status)
 if ($ok) { $probes.datetimeEcho += [string]$r.body.loanedAtUtc }
 
+# 以降のケースはシード(貸出作成)に依存する。製品側 blocker でシードが失敗した場合、
+# 中断せず残ケースを not-executed(fail) として記録する(治具の頑健化。harness 側変更)
+try {
 # --- S11-S13 返却境界(Frank, due = 2026-06-15) ---
 $frank = New-Member 'Frank'
 $mkLoan = { param($MemberId, $At)
@@ -292,6 +297,14 @@ if ($times.Count -ge 40) {
 } else { $ok = $false }
 Add-Result 'S20' $ok 'median<300ms over 50 seq POST' ("median={0}ms n={1}" -f $median, $times.Count)
 $probes.latencyMs = $median
+} catch {
+  $executed = @($script:results | ForEach-Object { $_.id })
+  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S19','S20')) {
+    if ($executed -notcontains $cid) {
+      Add-Result $cid $false 'per 41-fixed-oracle.yaml' ("not-executed: seed blocked ({0})" -f $_.Exception.Message)
+    }
+  }
+}
 
 Stop-Api
 

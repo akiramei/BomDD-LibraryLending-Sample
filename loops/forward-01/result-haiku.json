@@ -1,0 +1,148 @@
+{
+  "oracle": "forward-01 fixed oracle S01-S20",
+  "probes": {
+    "datetimeEcho": [
+      ""
+    ],
+    "ids": [
+      "bk_0000000005",
+      "mb_0000000007",
+      ""
+    ],
+    "errorMessages": [
+      "Title must be between 1 and 200 characters",
+      "Book not found"
+    ],
+    "extraFields": {
+      "POST/loans": [
+        "error"
+      ]
+    },
+    "latencyMs": null
+  },
+  "factory": "C:\\Users\\akira\\source\\repos\\BomDD-LibraryLending-Sample\\loops\\forward-01\\factory-03-haiku",
+  "total": 20,
+  "results": [
+    {
+      "id": "S01",
+      "expected": "201 bk_* copies=2 avail=2",
+      "pass": true,
+      "actual": "201 id=bk_0000000005 avail=2"
+    },
+    {
+      "id": "S02",
+      "expected": "201 mb_*",
+      "pass": true,
+      "actual": "201 id=mb_0000000007"
+    },
+    {
+      "id": "S03",
+      "expected": "400/invalid_request",
+      "pass": true,
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S04",
+      "expected": "404/not_found",
+      "pass": true,
+      "actual": "404/not_found"
+    },
+    {
+      "id": "S05",
+      "expected": "201 due=2026-02-14 active",
+      "pass": false,
+      "actual": "400 due= status="
+    },
+    {
+      "id": "S06",
+      "expected": "2nd=201, 3rd=409/no_copies_available",
+      "pass": false,
+      "actual": "2nd=400 3rd=400/invalid_request"
+    },
+    {
+      "id": "S07",
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded",
+      "pass": false,
+      "actual": "1-3=400,400,400 4th=400/invalid_request"
+    },
+    {
+      "id": "S08",
+      "expected": "400/invalid_request (+09:00)",
+      "pass": true,
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S09",
+      "expected": "400/invalid_request (+00:00)",
+      "pass": true,
+      "actual": "400/invalid_request"
+    },
+    {
+      "id": "S10",
+      "expected": "201 (.123Z accepted)",
+      "pass": false,
+      "actual": "400"
+    },
+    {
+      "id": "S11",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S12",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S13",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S14",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S15",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S16",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S17",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S18",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S19",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    },
+    {
+      "id": "S20",
+      "expected": "per 41-fixed-oracle.yaml",
+      "pass": false,
+      "actual": "not-executed: seed blocked (loan seed failed: {\"error\":{\"code\":\"invalid_request\",\"message\":\"An error occurred processing your request\"}})"
+    }
+  ],
+  "pass": 6
+}

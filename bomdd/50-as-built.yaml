@@ -1,0 +1,49 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-01
+  layer: As-Built
+
+# 成果物の同一性は git commit で固定する(個別 sha256 の代替。コミット後に SHA を確定)
+
+as_built:
+  - id: AB-F01-factory-01
+    mbom_ref: bomdd/32-mbom.yaml@forward-01-input-bom
+    routing_ref: bomdd/34-routing.yaml@forward-01-input-bom
+    input_bom_tag: forward-01-input-bom
+    ai_model: opus(クリーン general-purpose サブエージェント)
+    prompt: 工場共通指示(入力7ファイル限定・出力先のみ相違)
+    isolation: clean(設計対話・oracle/・他工場・bomdd/00,10,41,42 非開示)
+    artifacts: loops/forward-01/factory-01-opus/(Library.sln, src/Library.Core, src/Library.Api, test/Library.Acceptance)
+    self_acceptance: 24/24 PASS(unit 行全 vectors + 判定順序補強2件。任意の L3 スモークも自主実施)
+    inspections:
+      fixed_oracle: 20/20(現固定オラクル被覆で未観測差分ゼロ)
+      notes: 初回採点 19/20 は治具側ずる(CHEAT-F01-H001)による誤判定。補正後 20/20
+    cheats: [CHEAT-F01-001..009(opus)]
+
+  - id: AB-F01-factory-02
+    mbom_ref: bomdd/32-mbom.yaml@forward-01-input-bom
+    routing_ref: bomdd/34-routing.yaml@forward-01-input-bom
+    input_bom_tag: forward-01-input-bom
+    ai_model: sonnet(クリーン general-purpose サブエージェント)
+    prompt: 工場共通指示
+    isolation: clean
+    artifacts: loops/forward-01/factory-02-sonnet/
+    self_acceptance: 22/22 PASS(unit 行全 vectors + 状態機械4件)
+    inspections:
+      fixed_oracle: 20/20(現固定オラクル被覆で未観測差分ゼロ)
+    cheats: [CHEAT-F01-001..008(sonnet)]
+
+  - id: AB-F01-factory-03
+    mbom_ref: bomdd/32-mbom.yaml@forward-01-input-bom
+    routing_ref: bomdd/34-routing.yaml@forward-01-input-bom
+    input_bom_tag: forward-01-input-bom
+    ai_model: haiku(クリーン general-purpose サブエージェント)
+    prompt: 工場共通指示
+    isolation: clean
+    artifacts: loops/forward-01/factory-03-haiku/
+    self_acceptance: 17/17 PASS(unit 行全 vectors。L3 任意分は未実施)
+    inspections:
+      fixed_oracle: 6/20。S05-S07/S10 fail + S11-S20 not-executed(シード不能)
+      root_cause: POST /v1/loans が正しい literal-Z 入力でも常時 400(error.message="An error occurred processing your request"=例外を防御MWが400化)。API 表面の実行時欠陥
+      attribution: specified_contract_miss(工場能力。契約は BOM に明記済み・他2工場は遵守)
+    cheats: [CHEAT-F01-001..003(haiku)]
