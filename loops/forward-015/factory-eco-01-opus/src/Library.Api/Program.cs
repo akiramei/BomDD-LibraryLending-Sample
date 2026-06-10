@@ -78,9 +78,21 @@ app.MapPost("/v1/members", async (HttpContext http) =>
     if (!Api.TryGetString(root, "name", out var name) || name!.Length is < 1 or > 100)
         return Api.Invalid("name is required and must be 1..100 chars");
 
+    // memberType optional (default standard); enum value must be present-as-string-and-in-enum.
+    // Absent property => default standard. Present but non-string or out-of-enum => 400.
+    string? memberTypeRaw = null;
+    if (root.TryGetProperty("memberType", out _))
+    {
+        if (!Api.TryGetString(root, "memberType", out memberTypeRaw))
+            return Api.Invalid("memberType must be a string");
+    }
+    if (!MemberTypes.TryParse(memberTypeRaw, out var memberType))
+        return Api.Invalid("memberType must be one of: standard, premium");
+    var memberTypeName = MemberTypes.Name(memberType);
+
     var id = Ids.Member();
-    store.InsertMember(id, name!);
-    return Results.Json(new { id, name }, statusCode: StatusCodes.Status201Created);
+    store.InsertMember(id, name!, memberTypeName);
+    return Results.Json(new { id, name, memberType = memberTypeName }, statusCode: StatusCodes.Status201Created);
 });
 
 // ---- POST /v1/loans -------------------------------------------------------

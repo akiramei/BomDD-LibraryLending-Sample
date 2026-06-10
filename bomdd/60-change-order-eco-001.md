@@ -82,5 +82,16 @@ fixture(v0.2 個体で作成した実 DB)のコピーに対して rev3 ビルド
 | M03 | 既存会員(active 2件保持)が 3冊目=201・4冊目=409(=既定 standard の上限が既存個体に適用) | change miss(移行後規則の適用漏れ) |
 | M04 | 既存 returned 貸出の fineAmount が保持される | data-preservation miss |
 
-## 6. 記録(製造・受入後に記入)
-- 回帰(S01–S23): / 変更受入(S24–S25): / 移行(M01–M04): / 不要改変 diff: / 影響なし予測の的中:
+## 6. 記録(2026-06-11 実施)
+| 測定 | factory-eco-01(opus) | factory-eco-02(sonnet) |
+|---|---|---|
+| 自己受入 | 34/34(stop/report 発動なし) | 31/31 |
+| 回帰 S01–S23 | 23/23 = **regression 0** | 23/23 = **regression 0** |
+| 変更 S24–S25 | 2/2 = **change miss 0** | 2/2 = **change miss 0** |
+| 移行 M01–M04 | 4/4 = **data-preservation miss 0** | 4/4 = **data-preservation miss 0** |
+| 不要改変 diff | **0**(影響分析の4ファイルのみ。format/noise すら無し) | **0**(同) |
+| 移行方式 | user_version + ALTER TABLE(DEFAULT 'standard') | 同方式に独立収束(K-SQLITE の規律が一意化) |
+
+- **影響なし予測の的中**: オラクル 23 ケース(S01–S23)・非対象ファイル群とも全的中(under-inclusion 0 / over-inclusion 0)。S07(既定 standard=上限3)も予測どおり不変。
+- **成功条件(§4)達成**: 2 fresh 工場が S01–S25 + M01–M04 を通過、不要改変ゼロ。
+- 結論: **ECO・影響分析は BOM に宿り、別工場へ転移した**(コーチングなし・fresh 2工場が独立に同じ変更境界を守った)。「PLM の価値は絞り込み」が要求変更でも成立(観測した範囲)。

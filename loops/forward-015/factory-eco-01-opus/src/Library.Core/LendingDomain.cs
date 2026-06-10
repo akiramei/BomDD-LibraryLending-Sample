@@ -9,8 +9,16 @@ namespace Library.Core;
 public static class LendingDomain
 {
     public const int LoanPeriodDays = 14;
-    public const int MaxActiveLoansPerMember = 3;
+    public const int MaxActiveLoansStandard = 3;
+    public const int MaxActiveLoansPremium = 5;
     public const int FinePerOverdueDay = 100;
+
+    /// <summary>Active-loan limit for a member type (INV-2 rev3: standard=3 / premium=5).</summary>
+    public static int LoanLimit(MemberType memberType) => memberType switch
+    {
+        MemberType.Premium => MaxActiveLoansPremium,
+        _ => MaxActiveLoansStandard,
+    };
 
     /// <summary>UTC calendar day of an instant.</summary>
     public static DateOnly UtcDate(DateTimeOffset instant)
@@ -44,6 +52,39 @@ public static class LendingDomain
     }
 }
 
+/// <summary>
+/// Member classification (E-MEMBER-TYPE-001 / spec §2.3). Closed enumeration { standard, premium };
+/// the unspecified default is standard (preserves pre-rev3 behavior).
+/// </summary>
+public enum MemberType
+{
+    Standard,
+    Premium,
+}
+
+public static class MemberTypes
+{
+    public const string StandardName = "standard";
+    public const string PremiumName = "premium";
+
+    /// <summary>Parse a member-type wire value. null/missing => standard (default). Out-of-enum => false.</summary>
+    public static bool TryParse(string? value, out MemberType memberType)
+    {
+        memberType = MemberType.Standard;
+        if (value is null) return true; // unspecified default = standard
+        switch (value)
+        {
+            case StandardName: memberType = MemberType.Standard; return true;
+            case PremiumName: memberType = MemberType.Premium; return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>Canonical wire name for a member type (response field / persistence).</summary>
+    public static string Name(MemberType memberType) =>
+        memberType == MemberType.Premium ? PremiumName : StandardName;
+}
+
 /// <summary>Result codes for the loan-eligibility decision (spec §2.4 order).</summary>
 public enum LoanDecision
 {
@@ -60,7 +101,8 @@ public readonly record struct LoanContext(
     bool MemberExists,
     DateTimeOffset LoanedAtUtc,
     IReadOnlyList<DateOnly> MemberActiveLoanDueDates,
-    int BookAvailableCopies);
+    int BookAvailableCopies,
+    MemberType MemberType = MemberType.Standard);
 
 /// <summary>Result codes for the return decision (spec §2.5 order, after input validation).</summary>
 public enum ReturnDecision
@@ -87,8 +129,8 @@ public static class LendingDecisions
         if (LendingDomain.IsMemberOverdue(ctx.LoanedAtUtc, ctx.MemberActiveLoanDueDates))
             return LoanDecision.MemberOverdueBlocked;
 
-        // 4. active loan limit (>= 3 active => 4th blocked)
-        if (ctx.MemberActiveLoanDueDates.Count >= LendingDomain.MaxActiveLoansPerMember)
+        // 4. active loan limit (>= type limit active => next blocked; standard=3 / premium=5)
+        if (ctx.MemberActiveLoanDueDates.Count >= LendingDomain.LoanLimit(ctx.MemberType))
             return LoanDecision.LoanLimitExceeded;
 
         // 5. copies

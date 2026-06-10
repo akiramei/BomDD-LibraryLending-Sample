@@ -10,11 +10,12 @@ public static class UnitChecks
 {
     public static void Run(Harness h)
     {
-        AvailCheck(h);    // CP-CORE-AVAIL-001
-        LimitCheck(h);    // CP-CORE-LIMIT-001
-        DueCheck(h);      // CP-CORE-DUE-001
-        FineCheck(h);     // CP-CORE-FINE-001
-        OverdueCheck(h);  // CP-CORE-OVERDUE-001
+        AvailCheck(h);      // CP-CORE-AVAIL-001
+        LimitCheck(h);      // CP-CORE-LIMIT-001 (rev3: type-dependent)
+        MemberTypeCheck(h); // CP-MEMBER-TYPE-001 (rev3)
+        DueCheck(h);        // CP-CORE-DUE-001
+        FineCheck(h);       // CP-CORE-FINE-001
+        OverdueCheck(h);    // CP-CORE-OVERDUE-001
     }
 
     private static DateTimeOffset Inst(string z)
@@ -52,27 +53,59 @@ public static class UnitChecks
             LendingDecisions.EvaluateLoan(ctx2 with { BookAvailableCopies = 0 }) == LoanDecision.NoCopiesAvailable);
     }
 
-    // CP-CORE-LIMIT-001: 3rd ok, 4th loan_limit_exceeded, returned not counted.
+    // CP-CORE-LIMIT-001 (rev3): standard 3rd ok/4th blocked; premium 5th ok/6th blocked;
+    // unspecified default = standard (4th blocked); returned not counted.
     private static void LimitCheck(Harness h)
     {
         var loanInstant = Inst("2026-06-10T10:00:00Z");
         // far-future due dates so overdue does not interfere.
         var due = new DateOnly(2099, 1, 1);
 
-        // 2 active => 3rd allowed.
-        var two = new LoanContext(true, true, loanInstant, new[] { due, due }, BookAvailableCopies: 10);
-        h.Check("CP-CORE-LIMIT-001/third loan allowed (boundary is 4th)",
-            LendingDecisions.EvaluateLoan(two) == LoanDecision.Allowed);
+        DateOnly[] Active(int n) => Enumerable.Repeat(due, n).ToArray();
 
-        // 3 active => 4th blocked.
-        var three = two with { MemberActiveLoanDueDates = new[] { due, due, due } };
-        h.Check("CP-CORE-LIMIT-001/fourth loan loan_limit_exceeded",
-            LendingDecisions.EvaluateLoan(three) == LoanDecision.LoanLimitExceeded);
+        LoanContext Std(int active) =>
+            new(true, true, loanInstant, Active(active), BookAvailableCopies: 10, MemberType.Standard);
+        LoanContext Prem(int active) =>
+            new(true, true, loanInstant, Active(active), BookAvailableCopies: 10, MemberType.Premium);
+
+        // standard: 3rd allowed (2 active), 4th blocked (3 active).
+        h.Check("CP-CORE-LIMIT-001/standard third loan allowed (boundary is 4th)",
+            LendingDecisions.EvaluateLoan(Std(2)) == LoanDecision.Allowed);
+        h.Check("CP-CORE-LIMIT-001/standard fourth loan loan_limit_exceeded",
+            LendingDecisions.EvaluateLoan(Std(3)) == LoanDecision.LoanLimitExceeded);
+
+        // premium (rev3): 5th allowed (4 active), 6th blocked (5 active).
+        h.Check("CP-CORE-LIMIT-001/premium fifth loan allowed (boundary is 6th)",
+            LendingDecisions.EvaluateLoan(Prem(4)) == LoanDecision.Allowed);
+        h.Check("CP-CORE-LIMIT-001/premium sixth loan loan_limit_exceeded",
+            LendingDecisions.EvaluateLoan(Prem(5)) == LoanDecision.LoanLimitExceeded);
+
+        // unspecified default = standard: 4 active members blocked at 4th (LoanContext default type).
+        var defaultType = new LoanContext(true, true, loanInstant, Active(3), BookAvailableCopies: 10);
+        h.Check("CP-CORE-LIMIT-001/default (standard) fourth loan loan_limit_exceeded",
+            LendingDecisions.EvaluateLoan(defaultType) == LoanDecision.LoanLimitExceeded);
 
         // returned loans are not part of active due-date list => back under limit.
-        var afterReturn = three with { MemberActiveLoanDueDates = new[] { due, due } };
-        h.Check("CP-CORE-LIMIT-001/returned not counted, new loan allowed",
-            LendingDecisions.EvaluateLoan(afterReturn) == LoanDecision.Allowed);
+        h.Check("CP-CORE-LIMIT-001/standard returned not counted, new loan allowed",
+            LendingDecisions.EvaluateLoan(Std(2)) == LoanDecision.Allowed);
+    }
+
+    // CP-MEMBER-TYPE-001 (rev3): "premium" parses; unspecified defaults to standard; "gold" rejected.
+    private static void MemberTypeCheck(Harness h)
+    {
+        h.Check("CP-MEMBER-TYPE-001/\"premium\" parses to Premium",
+            MemberTypes.TryParse("premium", out var p) && p == MemberType.Premium);
+        h.Check("CP-MEMBER-TYPE-001/unspecified (null) defaults to standard",
+            MemberTypes.TryParse(null, out var d) && d == MemberType.Standard);
+        h.Check("CP-MEMBER-TYPE-001/\"standard\" parses to Standard",
+            MemberTypes.TryParse("standard", out var s) && s == MemberType.Standard);
+        h.Check("CP-MEMBER-TYPE-001/\"gold\" rejected (invalid_request)",
+            !MemberTypes.TryParse("gold", out _));
+        // limit lookup wiring: premium=5 / standard=3.
+        h.Check("CP-MEMBER-TYPE-001/limit standard=3",
+            LendingDomain.LoanLimit(MemberType.Standard) == 3);
+        h.Check("CP-MEMBER-TYPE-001/limit premium=5",
+            LendingDomain.LoanLimit(MemberType.Premium) == 5);
     }
 
     // CP-CORE-DUE-001: +14 calendar days, month/year rollover, time irrelevant.

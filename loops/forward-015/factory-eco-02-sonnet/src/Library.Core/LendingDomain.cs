@@ -9,8 +9,14 @@ namespace Library.Core;
 public static class LendingDomain
 {
     public const int LoanPeriodDays = 14;
-    public const int MaxActiveLoansPerMember = 3;
+    public const int MaxActiveLoansStandard = 3;
+    public const int MaxActiveLoansPerMember = 3; // kept for callers that do not pass memberType
+    public const int MaxActiveLoansPremium = 5;
     public const int FinePerOverdueDay = 100;
+
+    /// <summary>Loan limit for the given member type (INV-2 rev3).</summary>
+    public static int LoanLimit(string memberType)
+        => memberType == "premium" ? MaxActiveLoansPremium : MaxActiveLoansStandard;
 
     /// <summary>UTC calendar day of an instant.</summary>
     public static DateOnly UtcDate(DateTimeOffset instant)
@@ -60,7 +66,8 @@ public readonly record struct LoanContext(
     bool MemberExists,
     DateTimeOffset LoanedAtUtc,
     IReadOnlyList<DateOnly> MemberActiveLoanDueDates,
-    int BookAvailableCopies);
+    int BookAvailableCopies,
+    string MemberType = "standard"); // rev3: memberType for loan-limit (INV-2 rev3)
 
 /// <summary>Result codes for the return decision (spec §2.5 order, after input validation).</summary>
 public enum ReturnDecision
@@ -87,8 +94,8 @@ public static class LendingDecisions
         if (LendingDomain.IsMemberOverdue(ctx.LoanedAtUtc, ctx.MemberActiveLoanDueDates))
             return LoanDecision.MemberOverdueBlocked;
 
-        // 4. active loan limit (>= 3 active => 4th blocked)
-        if (ctx.MemberActiveLoanDueDates.Count >= LendingDomain.MaxActiveLoansPerMember)
+        // 4. active loan limit (>= limit active => next blocked; limit depends on memberType INV-2 rev3)
+        if (ctx.MemberActiveLoanDueDates.Count >= LendingDomain.LoanLimit(ctx.MemberType))
             return LoanDecision.LoanLimitExceeded;
 
         // 5. copies

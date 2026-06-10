@@ -31,32 +31,100 @@ public sealed class Store
         return conn;
     }
 
+    // Current internal schema version (K-SQLITE-001 rev3: schema version managed in DB).
+    // v0 = pre-migration baseline (v0.2 individual: members has no member_type).
+    // v1 = rev3 (members.member_type added; default 'standard' for existing rows).
+    private const long CurrentSchemaVersion = 1;
+
     public void EnsureSchema()
     {
         using var conn = Open();
+
+        // CREATE IF NOT EXISTS for a fresh DB; for an existing v0.2 DB these are no-ops and the
+        // member_type column is added by migration below (ALTER, preserving existing rows).
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = """
+                CREATE TABLE IF NOT EXISTS books (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    copies INTEGER NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS members (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    member_type TEXT NOT NULL DEFAULT 'standard'
+                );
+                CREATE TABLE IF NOT EXISTS loans (
+                    id TEXT PRIMARY KEY,
+                    book_id TEXT NOT NULL,
+                    member_id TEXT NOT NULL,
+                    loaned_at_utc TEXT NOT NULL,   -- ISO yyyy-MM-ddTHH:mm:ssZ (second precision)
+                    due_date_utc TEXT NOT NULL,     -- yyyy-MM-dd
+                    returned_at_utc TEXT,           -- NULL while active
+                    fine_amount INTEGER,            -- NULL while active
+                    status TEXT NOT NULL             -- 'active' | 'returned'
+                );
+                """;
+            cmd.ExecuteNonQuery();
+        }
+
+        Migrate(conn);
+    }
+
+    /// <summary>
+    /// Auto-migrate an existing DB to CurrentSchemaVersion (E-MIGRATION-001 / spec §2.7 rev3).
+    /// Schema version is tracked with the SQLite user_version PRAGMA. Migration uses ALTER/INSERT
+    /// only (existing rows preserved; never DROP/CREATE). Existing members get member_type='standard'.
+    /// A v0.2 DB reports user_version 0; the column add below brings it to version 1.
+    /// </summary>
+    private static void Migrate(SqliteConnection conn)
+    {
+        long version;
+        using (var get = conn.CreateCommand())
+        {
+            get.CommandText = "PRAGMA user_version";
+            version = Convert.ToInt64(get.ExecuteScalar());
+        }
+
+        if (version >= CurrentSchemaVersion) return;
+
+        using var tx = conn.BeginTransaction();
+
+        // v0 -> v1: ensure members.member_type exists. A fresh DB already has it (CREATE above);
+        // a v0.2 DB does not, so add it with default 'standard' (preserves existing members).
+        if (version < 1 && !ColumnExists(conn, tx, "members", "member_type"))
+        {
+            using var alter = conn.CreateCommand();
+            alter.Transaction = tx;
+            alter.CommandText = "ALTER TABLE members ADD COLUMN member_type TEXT NOT NULL DEFAULT 'standard'";
+            alter.ExecuteNonQuery();
+        }
+
+        using (var set = conn.CreateCommand())
+        {
+            set.Transaction = tx;
+            // PRAGMA user_version does not accept a bound parameter; value is a compile-time constant.
+            set.CommandText = $"PRAGMA user_version = {CurrentSchemaVersion}";
+            set.ExecuteNonQuery();
+        }
+
+        tx.Commit();
+    }
+
+    private static bool ColumnExists(SqliteConnection conn, SqliteTransaction tx, string table, string column)
+    {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            CREATE TABLE IF NOT EXISTS books (
-                id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                copies INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS members (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS loans (
-                id TEXT PRIMARY KEY,
-                book_id TEXT NOT NULL,
-                member_id TEXT NOT NULL,
-                loaned_at_utc TEXT NOT NULL,   -- ISO yyyy-MM-ddTHH:mm:ssZ (second precision)
-                due_date_utc TEXT NOT NULL,     -- yyyy-MM-dd
-                returned_at_utc TEXT,           -- NULL while active
-                fine_amount INTEGER,            -- NULL while active
-                status TEXT NOT NULL             -- 'active' | 'returned'
-            );
-            """;
-        cmd.ExecuteNonQuery();
+        cmd.Transaction = tx;
+        cmd.CommandText = $"PRAGMA table_info({table})";
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            // table_info columns: cid, name, type, notnull, dflt_value, pk
+            if (string.Equals(r.GetString(1), column, StringComparison.Ordinal))
+                return true;
+        }
+        return false;
     }
 
     // ---- Books -------------------------------------------------------------
@@ -102,13 +170,14 @@ public sealed class Store
 
     // ---- Members -----------------------------------------------------------
 
-    public void InsertMember(string id, string name)
+    public void InsertMember(string id, string name, string memberType)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO members (id, name) VALUES ($id, $name)";
+        cmd.CommandText = "INSERT INTO members (id, name, member_type) VALUES ($id, $name, $type)";
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$name", name);
+        cmd.Parameters.AddWithValue("$type", memberType);
         cmd.ExecuteNonQuery();
     }
 
@@ -192,12 +261,16 @@ public sealed class Store
         }
 
         bool memberExists;
+        var memberType = Library.Core.MemberType.Standard;
         using (var mcmd = conn.CreateCommand())
         {
             mcmd.Transaction = tx;
-            mcmd.CommandText = "SELECT 1 FROM members WHERE id = $id";
+            mcmd.CommandText = "SELECT member_type FROM members WHERE id = $id";
             mcmd.Parameters.AddWithValue("$id", memberId);
-            memberExists = mcmd.ExecuteScalar() is not null;
+            var res = mcmd.ExecuteScalar();
+            memberExists = res is not null and not DBNull;
+            if (memberExists)
+                Library.Core.MemberTypes.TryParse(Convert.ToString(res), out memberType);
         }
 
         var activeDueDates = new List<DateOnly>();
@@ -212,7 +285,7 @@ public sealed class Store
         }
 
         var ctx = new Library.Core.LoanContext(
-            bookExists, memberExists, loanedAtUtc, activeDueDates, availableCopies);
+            bookExists, memberExists, loanedAtUtc, activeDueDates, availableCopies, memberType);
         var (decision, dueDateText) = decide(ctx);
 
         if (decision != Library.Core.LoanDecision.Allowed)

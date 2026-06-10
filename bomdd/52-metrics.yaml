@@ -81,6 +81,26 @@ exploratory_variance:                  # 合否非混在(分散の観測のみ)
     specified_contract_miss: 4
     note: K-UTC が明記した「TZ変換の罠」を踏む=工場能力。ただし v1 と異なり test_vectors が自己受入で捕捉済(13/16赤のまま納品=納品条件違反を正直申告)。L1スモーク 6/6=v1の故障クラス(API表面死)は消滅
 
+  # --- forward-01.5(ECO-001 部分再製造。oracle v3 = S01-S25 + migration M01-M04) ---
+  - loop: forward-015
+    factory: factory-eco-01(opus, fresh, v0.2ソース改修)
+    bom_rev: rev3(tag forward-015-input)
+    raw_match: '25/25 + migration 4/4'
+    regression: 0
+    change_miss: 0
+    data_preservation_miss: 0
+    unnecessary_modification: 0
+    note: 自己受入34/34。移行=user_version+ALTER。使い捨て検証プロジェクトで移行を自己検証後に削除
+  - loop: forward-015
+    factory: factory-eco-02(sonnet, fresh, v0.2ソース改修)
+    bom_rev: rev3
+    raw_match: '25/25 + migration 4/4'
+    regression: 0
+    change_miss: 0
+    data_preservation_miss: 0
+    unnecessary_modification: 0
+    note: 自己受入31/31。移行方式が opus と独立に一致(user_version+ALTER=K-BOM の一意化効果)
+
 process_metrics:
   g2_readers: 3(opus/sonnet/haiku)
   g2_ambiguity_findings: { opus: 17, sonnet: 13, haiku: 17, 共通指摘: 6 }

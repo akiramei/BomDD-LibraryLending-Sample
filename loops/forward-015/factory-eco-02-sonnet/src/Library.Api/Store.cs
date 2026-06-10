@@ -31,9 +31,64 @@ public sealed class Store
         return conn;
     }
 
+    /// <summary>
+    /// Ensure schema is at rev3 (members.member_type column exists).
+    /// If the DB was created by v0.2 (no member_type column), migrate automatically (REQ-009 / §2.7 rev3):
+    ///   1. Add member_type column with default 'standard' for existing rows (ALTER TABLE ... ADD COLUMN).
+    ///   2. Update user_version PRAGMA to 3.
+    /// Migration is irreversible and uses ALTER/INSERT only — no DROP (K-SQLITE-001).
+    /// Self-verification approach: read PRAGMA user_version after migration and confirm == 3.
+    /// </summary>
     public void EnsureSchema()
     {
         using var conn = Open();
+
+        // Read current schema version.
+        int schemaVersion;
+        using (var vc = conn.CreateCommand())
+        {
+            vc.CommandText = "PRAGMA user_version";
+            schemaVersion = Convert.ToInt32(vc.ExecuteScalar());
+        }
+
+        if (schemaVersion == 0)
+        {
+            // Detect whether this is a fresh DB (no tables) or a v0.2 DB (tables exist, no member_type).
+            bool membersTableExists;
+            using (var tc = conn.CreateCommand())
+            {
+                tc.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='members'";
+                membersTableExists = Convert.ToInt32(tc.ExecuteScalar()) > 0;
+            }
+
+            if (membersTableExists)
+            {
+                // v0.2 DB detected: migrate by adding member_type column.
+                bool memberTypeColumnExists;
+                using (var cc = conn.CreateCommand())
+                {
+                    cc.CommandText = "SELECT COUNT(*) FROM pragma_table_info('members') WHERE name='member_type'";
+                    memberTypeColumnExists = Convert.ToInt32(cc.ExecuteScalar()) > 0;
+                }
+
+                if (!memberTypeColumnExists)
+                {
+                    // ALTER TABLE to add member_type column; existing rows get 'standard' (REQ-009).
+                    using var mc = conn.CreateCommand();
+                    mc.CommandText = "ALTER TABLE members ADD COLUMN member_type TEXT NOT NULL DEFAULT 'standard'";
+                    mc.ExecuteNonQuery();
+                }
+
+                // Stamp version 3.
+                using var stamp = conn.CreateCommand();
+                stamp.CommandText = "PRAGMA user_version = 3";
+                stamp.ExecuteNonQuery();
+
+                schemaVersion = 3;
+            }
+        }
+
+        // Create tables if not present (fresh DB) and stamp version 3.
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             CREATE TABLE IF NOT EXISTS books (
@@ -43,7 +98,8 @@ public sealed class Store
             );
             CREATE TABLE IF NOT EXISTS members (
                 id TEXT PRIMARY KEY,
-                name TEXT NOT NULL
+                name TEXT NOT NULL,
+                member_type TEXT NOT NULL DEFAULT 'standard'
             );
             CREATE TABLE IF NOT EXISTS loans (
                 id TEXT PRIMARY KEY,
@@ -57,6 +113,13 @@ public sealed class Store
             );
             """;
         cmd.ExecuteNonQuery();
+
+        if (schemaVersion < 3)
+        {
+            using var stamp2 = conn.CreateCommand();
+            stamp2.CommandText = "PRAGMA user_version = 3";
+            stamp2.ExecuteNonQuery();
+        }
     }
 
     // ---- Books -------------------------------------------------------------
@@ -102,13 +165,14 @@ public sealed class Store
 
     // ---- Members -----------------------------------------------------------
 
-    public void InsertMember(string id, string name)
+    public void InsertMember(string id, string name, string memberType)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO members (id, name) VALUES ($id, $name)";
+        cmd.CommandText = "INSERT INTO members (id, name, member_type) VALUES ($id, $name, $memberType)";
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$name", name);
+        cmd.Parameters.AddWithValue("$memberType", memberType);
         cmd.ExecuteNonQuery();
     }
 
@@ -119,6 +183,18 @@ public sealed class Store
         cmd.CommandText = "SELECT 1 FROM members WHERE id = $id";
         cmd.Parameters.AddWithValue("$id", id);
         return cmd.ExecuteScalar() is not null;
+    }
+
+    /// <summary>Returns (exists, memberType). memberType is "standard" when member not found.</summary>
+    public (bool exists, string memberType) GetMemberInfo(string id)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT member_type FROM members WHERE id = $id";
+        cmd.Parameters.AddWithValue("$id", id);
+        var result = cmd.ExecuteScalar();
+        if (result is null or DBNull) return (false, "standard");
+        return (true, result.ToString()!);
     }
 
     // ---- Loans -------------------------------------------------------------
@@ -192,12 +268,15 @@ public sealed class Store
         }
 
         bool memberExists;
+        string memberType = "standard";
         using (var mcmd = conn.CreateCommand())
         {
             mcmd.Transaction = tx;
-            mcmd.CommandText = "SELECT 1 FROM members WHERE id = $id";
+            mcmd.CommandText = "SELECT member_type FROM members WHERE id = $id";
             mcmd.Parameters.AddWithValue("$id", memberId);
-            memberExists = mcmd.ExecuteScalar() is not null;
+            var mres = mcmd.ExecuteScalar();
+            memberExists = mres is not null and not DBNull;
+            if (memberExists) memberType = mres!.ToString()!;
         }
 
         var activeDueDates = new List<DateOnly>();
@@ -212,7 +291,7 @@ public sealed class Store
         }
 
         var ctx = new Library.Core.LoanContext(
-            bookExists, memberExists, loanedAtUtc, activeDueDates, availableCopies);
+            bookExists, memberExists, loanedAtUtc, activeDueDates, availableCopies, memberType);
         var (decision, dueDateText) = decide(ctx);
 
         if (decision != Library.Core.LoanDecision.Allowed)

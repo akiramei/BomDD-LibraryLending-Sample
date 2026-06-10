@@ -78,9 +78,21 @@ app.MapPost("/v1/members", async (HttpContext http) =>
     if (!Api.TryGetString(root, "name", out var name) || name!.Length is < 1 or > 100)
         return Api.Invalid("name is required and must be 1..100 chars");
 
+    // memberType: optional, default "standard". Only "standard"|"premium" accepted (REQ-008 / §2.3 rev3).
+    string memberType = "standard";
+    if (root.TryGetProperty("memberType", out var mtProp))
+    {
+        if (mtProp.ValueKind != System.Text.Json.JsonValueKind.String)
+            return Api.Invalid("memberType must be 'standard' or 'premium'");
+        var mt = mtProp.GetString();
+        if (mt != "standard" && mt != "premium")
+            return Api.Invalid("memberType must be 'standard' or 'premium'");
+        memberType = mt;
+    }
+
     var id = Ids.Member();
-    store.InsertMember(id, name!);
-    return Results.Json(new { id, name }, statusCode: StatusCodes.Status201Created);
+    store.InsertMember(id, name!, memberType);
+    return Results.Json(new { id, name, memberType }, statusCode: StatusCodes.Status201Created);
 });
 
 // ---- POST /v1/loans -------------------------------------------------------
