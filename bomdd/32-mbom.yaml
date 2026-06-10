@@ -59,6 +59,8 @@ mbom:
         - CP-LIST-ORDER-001
         - CP-PERSIST-RESTART-001
         - CP-NFR-LATENCY-001
+        - CP-MEMBER-TYPE-001     # rev3
+        - CP-MIGRATION-001       # rev3
 
     - id: M-ACCEPTANCE-HARNESS-001
       artifact:
@@ -132,7 +134,7 @@ silence_sweep:
   - { dimension: 状態機械, decision: specified, where: INV-4・already_returned }
   - { dimension: 調達部品, decision: specified, where: 本ファイル procurement(列挙外=ずる報告) }
   - { dimension: 永続化(スキーマ帰属), decision: out-of-scope, note: 内部スキーマ自由・挙動で検査(仕様§2.7) }
-  - { dimension: 永続化(マイグレーション), decision: out-of-scope, note: charter(forward-01.5 ECO で検証) }
+  - { dimension: 永続化(マイグレーション), decision: specified, where: 仕様§2.7(rev3)/ E-MIGRATION-001 / K-SQLITE-001 / CP-MIGRATION-001 }
   - { dimension: 永続化(トランザクション境界), decision: specified, where: K-SQLITE-001(書き込み=1トランザクション) }
   - { dimension: 永続化(同時更新競合), decision: specified(検査は次段), note: INV-1。MeasurementCapability=insufficient-depth }
   - { dimension: 永続化(データ互換性), decision: out-of-scope, note: 単一版のみ。ECO で扱う }

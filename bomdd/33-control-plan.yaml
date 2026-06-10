@@ -26,17 +26,40 @@ control_plan:
         - copies=2: 2件まで成功・3件目拒否
 
     - id: CP-CORE-LIMIT-001
-      characteristic: 会員上限(active ≤ 3)
+      characteristic: 会員上限(active ≤ 区分上限。rev3 で区分依存化)
       classification: core
       depth: unit
       tolerance: exact
       fixture: test/Library.Acceptance
-      oracle: 同一会員で3件目成功・4件目 loan_limit_exceeded・1件返却後は成功
+      oracle: 区分ごとの上限で「上限冊目成功・上限+1冊目 loan_limit_exceeded・返却後成功」
       approver: automated
       test_vectors:
-        - 3件目=成功(境界は4件目)
-        - 4件目=loan_limit_exceeded
-        - 返却済みは数えない(3件中1返却→新規成功)
+        - standard 3件目=成功・4件目=loan_limit_exceeded
+        - premium 5件目=成功・6件目=loan_limit_exceeded(rev3)
+        - 未指定(既定 standard)で4件目=loan_limit_exceeded(rev3。既存挙動の保存)
+        - 返却済みは数えない(上限到達後に1返却→新規成功)
+
+    - id: CP-MEMBER-TYPE-001    # rev3(ECO-001)
+      characteristic: 会員区分の受理・既定・拒否
+      classification: core
+      depth: unit
+      tolerance: exact
+      fixture: test/Library.Acceptance
+      oracle: memberType の列挙検証と既定値・応答含有
+      approver: automated
+      test_vectors:
+        - '"premium" → 201 memberType=premium'
+        - 未指定 → 201 memberType=standard
+        - '"gold" → invalid_request'
+
+    - id: CP-MIGRATION-001      # rev3(ECO-001)
+      characteristic: v0.2 DB の自動移行(データ保持・既存=standard)
+      classification: core
+      depth: L3
+      tolerance: fixture manifest と同値(M01-M04)
+      fixture: oracle/migration-oracle.ps1 + oracle/fixtures/baseline-v02.db(設計者側)
+      oracle: v0.2 fixture のコピーで rev3 を起動し、既存データの保持と新ルール適用を検査
+      approver: automated
 
     - id: CP-CORE-DUE-001
       characteristic: dueDateUtc = UTC暦日 + 14日(暦日加算)

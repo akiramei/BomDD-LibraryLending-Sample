@@ -73,3 +73,4 @@ as_built:
       fixed_oracle: 19/23(S05/S11/S16/S22 fail)
       root_cause: ローカルTZ(JST)混入(echo が入力+9h)。K-UTC-ISO8601-001 が明記した罠
       attribution: specified_contract_miss(工場能力)。v1 と異なり故障は自己受入で可視化されていた
+    disposition: "**manufacturing nonconformance として記録固定(ユーザー裁定 2026-06-10)**。深掘り・再々製造はしない(forward-01.5 の目的を濁すため)。対策は工程規律へ: 自己受入赤は納品でなく stop/report(work order に明文化済み)"

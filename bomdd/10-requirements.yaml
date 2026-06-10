@@ -16,14 +16,33 @@ requirements:
       - 部数2の蔵書に3件目の貸出が通る
       - 返却済み貸出が貸出中として数えられ、貸せるのに拒否する
 
-  - id: REQ-002
-    statement: 会員は同時に最大3冊まで借りられる。4冊目の貸出要求は拒否する。
-    rationale: 紛失リスク管理。上限は会員一律3(将来は会員区分で変える可能性=forward-01.5 ECO 候補)。「同時に」=返却されていない貸出の数。境界: 3冊目は成功、4冊目で拒否。
+  - id: REQ-002    # rev3(ECO-001)で改訂
+    statement: 会員の同時貸出上限は会員区分に依存する — standard=3冊 / premium=5冊。上限+1冊目の貸出要求は拒否する。
+    rationale: 紛失リスク管理。ECO-001 で区分依存化。「同時に」=返却されていない貸出の数。境界: 上限冊目は成功、上限+1冊目で拒否(standard は4冊目、premium は6冊目)。
     rationale_precision: ok
     classification_hint: core
     counterexamples:
-      - 返却済みを数えて3冊未満なのに拒否する
-      - 別会員の貸出を数えて拒否する
+      - 返却済みを数えて上限未満なのに拒否する
+      - premium に standard の上限を適用する
+
+  - id: REQ-008    # rev3(ECO-001)で新規
+    statement: 会員登録時に memberType(standard | premium)を任意指定できる。未指定の既定は standard。それ以外の値は拒否する。登録応答に memberType を含める。
+    rationale: 区分の導入点は登録時のみ(変更手段はスコープ外)。既定 standard は既存挙動(上限3)を保存する設計。不正値は 400 invalid_request(新エラーコードは増やさない)。
+    rationale_precision: ok
+    classification_hint: core
+    counterexamples:
+      - 未指定で premium になる
+      - '"gold" が受理される'
+
+  - id: REQ-009    # rev3(ECO-001)で新規
+    statement: 既存の v0.2 データベースで起動でき、既存の蔵書・会員・貸出・返却状態・延滞料金をすべて保持して自動移行する。既存会員の区分は standard。既存 active 貸出は新ルール下でも上限カウントに数える。
+    rationale: データはコードと違い再鋳造で交換できない(不可逆)。移行の正否は専用オラクル(fixture ベースの execution)で検査する。ロールバックは不要だが、起動失敗・データ消失をしないこと。
+    rationale_precision: ok
+    classification_hint: core
+    external_source: 移行対象スキーマ = As-Maintained 個体(factory-04-opus-rev2)の内部スキーマ
+    counterexamples:
+      - 旧 DB を検出して作り直し(データ消失)でテスト緑
+      - 既存会員が premium 扱いになり上限が変わる
 
   - id: REQ-003
     statement: 貸出期限は貸出日(UTC 暦日)の14日後の暦日。返却が期限日を過ぎた場合、延滞料金 = 延滞日数 × 100(整数円)を返却応答で返す。期限日当日の返却は延滞ではない。

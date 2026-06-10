@@ -13,7 +13,7 @@
 - **暦日差**: 2 つの暦日を日付として引いた日数(例 `2026-02-15 − 2026-02-14 = 1`)。
 - 通貨は整数円。小数は発生しない。
 - 文字数は .NET の `string.Length`(UTF-16 コードユニット数)。前後空白のトリムはしない(空白のみでも長さを満たせば受理)。
-- **スコープ外(意図的省略)**: 認証・冪等キー・ページング・蔵書/会員の更新/削除/一覧・会員単体取得。一覧応答は常に全件。
+- **スコープ外(意図的省略)**: 認証・冪等キー・ページング・蔵書/会員の更新/削除/一覧・会員単体取得・**会員区分の変更手段(登録時のみ。rev3)**。一覧応答は常に全件。
 
 ## 2. 機能仕様
 
@@ -26,10 +26,10 @@
 - 成功: **200**(2.1 と同形。availableCopies = copies − active loan 数)
 - 不在: **404** `code=not_found`
 
-### 2.3 会員登録 — POST /v1/members (REQ-006)
-- リクエスト: `{ "name": string(1..100) }`
-- 成功: **201** `{ "id": string, "name": string }`
-- 検証エラー: **400** `code=invalid_request`
+### 2.3 会員登録 — POST /v1/members (REQ-006, REQ-008)
+- リクエスト: `{ "name": string(1..100), "memberType": "standard" | "premium"(任意。既定 "standard") }`
+- 成功: **201** `{ "id": string, "name": string, "memberType": string }`
+- 検証エラー(name 不正・memberType が列挙外の値): **400** `code=invalid_request`
 
 ### 2.4 貸出 — POST /v1/loans (REQ-001, REQ-002, REQ-004, REQ-006)
 - リクエスト: `{ "bookId": string, "memberId": string, "loanedAtUtc": 日時(§1) }`
@@ -38,7 +38,7 @@
   1. 入力検証(フィールド欠落・型不正・日時形式違反)→ **400** `invalid_request`。bookId/memberId は**非空の文字列**であること(欠落・null・非文字列・**空文字・空白のみ** → 400。rev2 で固定: 「存在しない ID」と「入力不正」を混ぜない)。それ以外の値の形式検証はせず、次段の存在確認へ。
   2. bookId / memberId 不在 → **404** `not_found`(両方不在でも code は同じ `not_found`)
   3. 会員が延滞中 → **409** `member_overdue_blocked`。**延滞中** = その会員の active loan の**いずれか 1 件でも** `UTC暦日(loanedAtUtc) > dueDateUtc`(INV-3)
-  4. 会員の active loan が 3 件(INV-2)→ **409** `loan_limit_exceeded`
+  4. 会員の active loan が区分上限(standard=3 / premium=5)に達している(INV-2 rev3)→ **409** `loan_limit_exceeded`
   5. 蔵書の availableCopies == 0(INV-1)→ **409** `no_copies_available`
 - `dueDateUtc` = UTC暦日(loanedAtUtc) + 14日(暦日加算。例 `1/31 → 2/14`、`12/25 → 翌年 1/8`)。**`yyyy-MM-dd` の 10 文字文字列**(時刻部なし)。
 - `loanedAtUtc`(応答)= 入力と同一瞬時(秒未満切り捨て)を **`yyyy-MM-ddTHH:mm:ssZ` 固定形式**で返す(§1 出力形式。rev2 で固定)。
@@ -61,11 +61,12 @@
 - memberId 欠落(クエリパラメータ自体が無い)・**空文字・空白のみ(`?memberId=`)** → **400** `invalid_request`(rev2 で §2.4 判定1 と同じ「非空文字列」規則に統一)/ memberId 不在 → **404** `not_found`。
 - active と returned の両方を含む。
 
-### 2.7 永続化 (REQ-005)
+### 2.7 永続化・スキーマ移行 (REQ-005, REQ-009)
 - 全データはプロセス終了後も保持され、再起動後に同じ API で取得できる。
 - 保存先: SQLite 単一ファイル。パスは環境変数 `LIBRARY_DB_PATH` で指定(未設定時は `./library.db`)。相対パスはプロセスの作業ディレクトリ基準。親ディレクトリは存在する前提でよい(無い場合の挙動は規定しない)。
 - 起動時にファイルが無ければスキーマごと作成する。
-- 内部スキーマ(テーブル名・列名・型)は仕様で固定しない(検査は挙動=API で行う)。
+- **スキーマ移行(rev3, REQ-009)**: 起動時に v0.2 スキーマ(As-Maintained 個体=factory-04 の内部スキーマ)の DB を検出した場合、自動移行する。既存データ(蔵書・会員・貸出・返却状態・延滞料金)をすべて保持し、既存会員の memberType は `standard` とする。起動失敗・データ消失をしない(ロールバックは不要)。
+- 内部スキーマ(テーブル名・列名・型)は仕様で固定しない(検査は挙動=API で行う)。移行の正否も挙動(専用オラクル M01–M04)で検査する。
 
 ### 2.8 エラー応答スキーマ(全エンドポイント共通)
 ```json
@@ -79,7 +80,7 @@
 | ID | 不変条件 | REQ |
 |---|---|---|
 | INV-1 | 蔵書ごとに active loan 数 ≤ copies(貸出判定と作成は原子的に行い、同時要求でも超過しない) | REQ-001 |
-| INV-2 | 会員ごとに active loan 数 ≤ 3 | REQ-002 |
+| INV-2 | 会員ごとに active loan 数 ≤ 区分上限(standard=3 / premium=5。rev3) | REQ-002, REQ-008 |
 | INV-3 | 延滞判定は UTC 暦日比較: 「延滞中」= active loan のいずれかが `UTC暦日(基準時刻) > dueDateUtc`。基準時刻は操作のリクエストが運ぶ(新規貸出時 = その loanedAtUtc)。サーバ時計は使わない | REQ-003, REQ-004 |
 | INV-4 | 貸出の状態機械は active → returned の一方向のみ。returned からの遷移は無い | REQ-007 |
 | INV-5 | ID = 接頭辞(蔵書 `bk_`・会員 `mb_`・貸出 `ln_`)+ **32桁の小文字16進数**(GUID "N" 形式。rev2 で固定: 公開契約のため)。並び順の意味は ID に依存させない(§2.6 の第一キーは loanedAtUtc) | REQ-006 |
@@ -101,6 +102,8 @@
 | 内部スキーマ | out-of-scope | 挙動で検査(§2.7) |
 | 同時更新の競合 | specified(検査は次段) | INV-1。固定オラクルでは検査しない(charter) |
 | 調達部品 | deferred-to-phase3 | M-BOM procurement で固定 |
+| 会員区分(rev3) | specified | 列挙2値・既定 standard・不正値 400(§2.3)。新エラーコードは増やさない |
+| スキーマ移行(rev3) | specified | §2.7(自動移行・データ保持・既存=standard)。検査は専用オラクル M01–M04 |
 
 ## 5. トレース表
 | REQ | 実現節 | 受入観点(深さ) |
@@ -118,4 +121,5 @@
 ## ゲート記録(G2/G2')
 - **G2 マルチリーダー監査(実施 2026-06-10)**: リーダー3体(opus/sonnet/haiku、互いに非開示・仕様のみ供与)。要求・不変条件の抽出は 3 体とも一致(振る舞いは一意に読めた)。**曖昧指摘: opus 17 / sonnet 13 / haiku 17 件**。3 体が独立に重ねた指摘(=最優先で固定): `+00:00` の扱い / ISO 許容形(小文字z・小数秒)/ 返却過去判定の粒度(暦日 vs 瞬時)/ 一覧 id 昇順の定義(INV-5 裁量との不整合)/ 延滞 any/all / 一覧の「同形」(active の returnedAtUtc/fineAmount)。単独だが採用: 未来日時の受理(sonnet)/ 500 の応答形は契約外(opus)/ 同一 returnedAtUtc 再送も 409(haiku)/ message 非空(sonnet)。**Loop7 の「振る舞いは一致し精度で割れる」がフォワード仕様でも再現**(割れたのは期待値の精度次元)。本 rev1 で全て固定または明示的に exploratory/out-of-scope 化。再監査は省略し G3 ドライランで代替(コスト判断。差分は手法ずれとして cheat-log に記録)。
 - **G2' MeasurementCapability**: 全 REQ/NFR = adequate(HTTP 黒箱+再起動 execution+L3 計測で観測可能)。例外: **INV-1 の同時要求の原子性 = insufficient-depth**(並行検査治具が無い。charter でスコープ外宣言済み、次段へ)。unmeasurable なし。承認者必要なし(知覚特性なし)。
+- **rev3(2026-06-10, ECO-001 = forward-01.5)**: 会員区分の導入(REQ-002 改訂・REQ-008/009 新規)。変更の典拠と影響分析は [60-change-order-eco-001.md](60-change-order-eco-001.md)。S01–S23 は不変、追加 S24–S25+移行オラクル M01–M04。
 - **rev2(2026-06-10, Phase 5 ユーザー裁定による仕様昇格)**: Q1 ID 形式=接頭辞+32桁小文字hex / Q2 応答日時=秒精度固定 / Q3 null・欠落・空文字・空白=400 に統一 / Q4 `internal_error` を共通語彙として列挙に追加。オラクルへの昇格は**ループ境界で実施**(v2 = S01–S23、tag `forward-01-rev2-input-bom` で再凍結)。Q5(haiku)=工場能力として記録のみ、再試行は別測定 `haiku-retry` 扱い。

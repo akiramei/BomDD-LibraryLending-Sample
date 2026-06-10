@@ -1,0 +1,32 @@
+{
+  "pass": 4,
+  "factory": "C:\\Users\\akira\\source\\repos\\BomDD-LibraryLending-Sample\\loops\\forward-01\\factory-04-opus-rev2",
+  "results": [
+    {
+      "pass": true,
+      "expected": "v0.2 DB で起動(移行実行)",
+      "id": "M01",
+      "actual": "ready=True"
+    },
+    {
+      "pass": true,
+      "expected": "books avail / m1 loans(3件・順序・status) / m2 空 = manifest 同値",
+      "id": "M02",
+      "actual": "A=True B=True m1=True m2=True"
+    },
+    {
+      "pass": true,
+      "expected": "returned fine=100 保持",
+      "id": "M04",
+      "actual": "fine=100"
+    },
+    {
+      "pass": true,
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded(既存会員=standard)",
+      "id": "M03",
+      "actual": "3rd=201 4th=409/loan_limit_exceeded"
+    }
+  ],
+  "total": 4,
+  "oracle": "migration M01-M04"
+}

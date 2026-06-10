@@ -1,0 +1,36 @@
+{
+  "bookA": {
+    "copies": 3,
+    "id": "bk_06e4a1bf8a2140a8a583d828db9fc32a",
+    "availableCopies": 2
+  },
+  "bookB": {
+    "copies": 5,
+    "id": "bk_6de91ab882de40b8bb0b961044c2e0c5",
+    "availableCopies": 4
+  },
+  "m1_loans_ordered": [
+    {
+      "fineAmount": 100,
+      "status": "returned",
+      "id": "ln_41b43ed1061c4df5be1512159b8d9e3f"
+    },
+    {
+      "status": "active",
+      "id": "ln_c3915c3d53e947a6b189d61c3941e5e6"
+    },
+    {
+      "status": "active",
+      "id": "ln_046efe21fd004c77883307d5d18338fd"
+    }
+  ],
+  "created_from": "factory-04-opus-rev2 (v0.2-forward-01-rev2)",
+  "m2": {
+    "active_loans": 0,
+    "id": "mb_b7f472d721f0481c87fb886be2140cd9"
+  },
+  "m1": {
+    "active_loans": 2,
+    "id": "mb_787c715da5694b868c13e1832cda6221"
+  }
+}

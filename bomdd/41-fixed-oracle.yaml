@@ -52,3 +52,17 @@ fixed_oracle:
     - { id: S21, scenario: ID 形式(S01/S02/S05 の発行 id), expect: '^(bk|mb|ln)_[0-9a-f]{32}$', spec_ref: INV-5(rev2), depth: L2 }
     - { id: S22, scenario: 応答日時の出力形式(S05 echo と S10 の .123Z 入力), expect: 'yyyy-MM-ddTHH:mm:ssZ 文字列 exact(S05=2026-01-31T10:00:00Z / S10=秒未満切り捨て 2026-03-02T09:00:00Z)', spec_ref: §1 出力形式(rev2), depth: L2 }
     - { id: S23, scenario: 空文字・空白の bookId / ?memberId=, expect: 'すべて 400 invalid_request', spec_ref: §2.4-1/§2.6(rev2), depth: L2 }
+    # --- v3(rev3 = ECO-001。ループ境界で追加。S01-S23 は不変) ---
+    - { id: S24, scenario: 会員区分(premium 指定 / 未指定 / 不正値 gold), expect: '201 memberType=premium / 201 memberType=standard / 400 invalid_request', spec_ref: §2.3(rev3), depth: L3 }
+    - { id: S25, scenario: premium 会員の上限(同一蔵書で5冊+6冊目), expect: '5冊目=201, 6冊目=409 loan_limit_exceeded', spec_ref: §2.4-4(rev3), depth: L3 }
+
+# マイグレーション専用オラクル(rev3 新設。fixture ベース。詳細は 60-change-order-eco-001.md §5)
+migration_oracle:
+  jig: oracle/migration-oracle.ps1
+  fixture: oracle/fixtures/baseline-v02.db + baseline-v02-manifest.json(As-Maintained 個体 factory-04 で作成)
+  calibration: 'negative control = v0.2 個体(factory-04)に対して実行し M01-M04 が PASS(移行不要時のデータ保持)・S24/S25 が FAIL(弁別力)を確認してから凍結'
+  cases:
+    - { id: M01, check: v0.2 スキーマの DB で rev3 が起動する(移行実行・エラーなし), fail_class: data-preservation miss }
+    - { id: M02, check: 既存の蔵書(copies/avail)・貸出一覧(件数・status・並び)が manifest と同値, fail_class: data-preservation miss }
+    - { id: M03, check: 既存会員(active 2件)が 3冊目=201・4冊目=409(既定 standard の上限適用), fail_class: change miss }
+    - { id: M04, check: 既存 returned 貸出の fineAmount 保持, fail_class: data-preservation miss }

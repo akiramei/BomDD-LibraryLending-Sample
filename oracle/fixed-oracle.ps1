@@ -299,6 +299,27 @@ $t3 = Test-ErrorShape $r3 400 'invalid_request'
 $ok = $t1.ok -and $t2.ok -and $t3.ok
 Add-Result 'S23' $ok 'empty/whitespace ids and ?memberId= all 400/invalid_request' ("bookId='' {0} / memberId='   ' {1} / ?memberId= {2}" -f $t1.desc, $t2.desc, $t3.desc)
 
+# --- S24 会員区分(v3/rev3=ECO-001 で追加) ---
+$rPrem = Invoke-Api POST '/v1/members' @{ name = 'Peggy'; memberType = 'premium' }
+$rDef = Invoke-Api POST '/v1/members' @{ name = 'Quinn' }
+$rBad = Invoke-Api POST '/v1/members' @{ name = 'Rex'; memberType = 'gold' }
+$tBad = Test-ErrorShape $rBad 400 'invalid_request'
+$ok = ($rPrem.status -eq 201) -and ([string]$rPrem.body.memberType -ceq 'premium') -and
+      ($rDef.status -eq 201) -and ([string]$rDef.body.memberType -ceq 'standard') -and $tBad.ok
+Add-Result 'S24' $ok 'premium=201/premium, default=201/standard, gold=400' ("prem={0}/{1} def={2}/{3} bad={4}" -f $rPrem.status, $rPrem.body.memberType, $rDef.status, $rDef.body.memberType, $tBad.desc)
+
+# --- S25 premium 上限5(v3/rev3) ---
+$premId = [string]$rPrem.body.id
+$p5ok = $true
+for ($i = 1; $i -le 5; $i++) {
+  $r = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $premId; loanedAtUtc = ('2026-08-01T0{0}:00:00Z' -f $i) }
+  if ($r.status -ne 201) { $p5ok = $false }
+}
+$r6 = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $premId; loanedAtUtc = '2026-08-01T06:00:00Z' }
+$t6 = Test-ErrorShape $r6 409 'loan_limit_exceeded'
+$ok = $p5ok -and $t6.ok
+Add-Result 'S25' $ok '1-5=201, 6th=409/loan_limit_exceeded' ("1-5ok={0} 6th={1}" -f $p5ok, $t6.desc)
+
 # --- スナップショット(S19 用) ---
 $snapBook1 = Invoke-Api GET "/v1/books/$book1"
 $snapJudy = Invoke-Api GET "/v1/loans?memberId=$judy"
@@ -351,7 +372,7 @@ Add-Result 'S20' $ok 'median<300ms over 50 seq POST' ("median={0}ms n={1}" -f $m
 $probes.latencyMs = $median
 } catch {
   $executed = @($script:results | ForEach-Object { $_.id })
-  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S21','S22','S23','S19','S20')) {
+  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S21','S22','S23','S24','S25','S19','S20')) {
     if ($executed -notcontains $cid) {
       Add-Result $cid $false 'per 41-fixed-oracle.yaml' ("not-executed: seed blocked ({0})" -f $_.Exception.Message)
     }

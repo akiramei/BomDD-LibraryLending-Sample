@@ -17,14 +17,40 @@ ebom:
       acceptance_refs: [CP-CORE-AVAIL-001]
 
     - id: E-LOAN-LIMIT-001
-      name: 会員貸出上限
+      name: 会員貸出上限(rev3: 区分依存)
       classification: core
       rationale_type: requirement
-      requirement_refs: [REQ-002]
+      requirement_refs: [REQ-002, REQ-008]
+      depends_on: [E-MEMBER-TYPE-001]
       invariants:
-        - 会員ごとに active loan 数 ≤ 3(INV-2)。3冊目は成功、4冊目で loan_limit_exceeded
+        - 会員ごとに active loan 数 ≤ 区分上限(standard=3 / premium=5)(INV-2 rev3)
+        - 上限冊目は成功、上限+1冊目で loan_limit_exceeded
         - 返却で枠が空く(active のみ数える)
       acceptance_refs: [CP-CORE-LIMIT-001]
+
+    - id: E-MEMBER-TYPE-001    # rev3(ECO-001)新規
+      name: 会員区分
+      classification: core
+      rationale_type: requirement
+      requirement_refs: [REQ-008]
+      invariants:
+        - memberType ∈ { standard, premium }。未指定の既定は standard(既存挙動を保存する設計)
+        - 列挙外の値は invalid_request(新エラーコードは増やさない)
+        - 登録応答に memberType を含める。変更手段はスコープ外
+      acceptance_refs: [CP-MEMBER-TYPE-001]
+
+    - id: E-MIGRATION-001      # rev3(ECO-001)新規
+      name: v0.2 スキーマ自動移行
+      classification: core      # 「既存データを保持して動く」は要求由来。手段(SQL)は表面=K-SQLITE
+      rationale_type: requirement
+      requirement_refs: [REQ-009]
+      depends_on: [E-SQLITE-STORE-001, E-MEMBER-TYPE-001]
+      kbom_refs: [K-SQLITE-001]
+      invariants:
+        - v0.2 スキーマ(As-Maintained 個体=factory-04)の DB で起動でき、自動移行する
+        - 既存の蔵書・会員・貸出・返却状態・延滞料金を保持。既存会員は standard
+        - 起動失敗・データ消失をしない(ロールバック不要・不可逆でよい)
+      acceptance_refs: [CP-MIGRATION-001]
 
     - id: E-DUE-FINE-001
       name: 期限・延滞料金計算
