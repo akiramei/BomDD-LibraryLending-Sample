@@ -51,12 +51,27 @@
 - **較正の実施記録(2026-06-10)**: 治具セルフテスト PASS / migration-oracle vs v0.2 = **4/4** / fixed-oracle v3 vs v0.2 = **23/25(S01–S23 全PASS・S24/S25 のみ FAIL)** = 想定プロファイルに一致。較正の初回実行が M03 のシナリオ日付バグ(延滞ブロックとの干渉)を凍結前に捕捉(CHEAT-F015-H001)。
 - 凍結 tag: `forward-015-input`
 
-## 4. 部分再製造の計画(隔離条件 — 製造は次段)
-- 工場に渡すもの: **v0.2 個体のソース一式(factory-04-opus-rev2)+ 本 ECO + 改訂済み BOM(20/30–34/40)**。
-- 渡さないもの: 設計対話・oracle/・他工場成果・旧 cheat。
+## 4. 部分再製造の計画(隔離条件 — ユーザー承認 2026-06-11 で確定)
+- **工場数: 2(opus / sonnet、fresh)**。主題は「ECO/影響分析が BOM に宿り別工場へ転移するか」のため 1 工場では測定が弱い。haiku は入れない(能力差は前段で観測済み。Phase 7 の目的を濁さない)。
+- 工場に渡すもの: **v0.2 個体のソース複製(factory-04 由来。各工場専用ディレクトリに設計者が事前複製・コミット=diff 基準点)+ 本 ECO + 改訂済み BOM(20/30–34/40)**。
+- **渡さないもの(再確認)**: 設計対話 / S24–S25 の具体オラクル(41)/ 探索プローブ(42)/ **migration-oracle の実装** / **baseline fixture とその期待値(manifest)** / 他工場成果 / 旧 cheat-report。
 - 指示: 「ECO の影響分析にある箇所**だけ**を改修せよ。影響なし箇所への変更は禁止」。
-- **不要改変の測定**: 納品後に v0.2 ソースとの diff を取り、影響分析外のファイル/箇所への変更を「不要改変」として As-Built に記録(Phase 7 の第2の測定値)。
-- 自己受入: 既存ハーネス(unit+L1 スモーク)+ 追加 vectors。**赤のままの納品は不可(stop/report)**。
+- **不要改変の測定**: 納品後に複製時点との git diff を取り、影響分析外への変更を分類して As-Built に記録:
+  `format/noise`(整形・コメント等) / `test-only`(ハーネスのみ) / `behavior-risk`(挙動に影響しうる) / `contract-change`(公開契約の変更)。
+- 自己受入: 既存ハーネス(unit+L1 スモーク)+ 追加 vectors(CP-CORE-LIMIT rev3 / CP-MEMBER-TYPE)。**赤のままの納品は不可(stop/report。nonconformance として As-Built に記録し、納品物として採点しない)**。
+
+### 結果分類(製造前に固定)
+| 観測 | 分類 |
+|---|---|
+| S01–S23 の失敗 | **regression** |
+| S24–S25 の失敗 | **change miss** |
+| M01–M04 の失敗 | **data-preservation miss** |
+| 影響分析外への diff | **unnecessary modification**(上記4性質で細分) |
+| 自己受入赤での停止 | **manufacturing nonconformance**(採点対象外) |
+
+### 成功条件
+2 fresh 工場が **S01–S25 と M01–M04 を通過**し、不要改変が `format/noise`・`test-only` に収まること。
+失敗にも価値がある: 特に **S07 が壊れた場合は影響なし予測の反証**として最良級のデータ。
 
 ## 5. マイグレーション専用オラクル(M01–M04)
 fixture(v0.2 個体で作成した実 DB)のコピーに対して rev3 ビルドを起動して検査:
