@@ -68,3 +68,8 @@
 ## 6. 次段候補
 - Service BOM(外部知識劣化)との複合イベント(アドバイス裁定の残り)
 - 受入ハーネスの構成不一致の是正(小 ECO または保守コミット)
+
+---
+**method 還元済み(2026-07-04・BomDD ad8646c)**: §2 の実物点検(playbook §8 手順2+テンプレ 61 §1.2)/
+反証可能な予測の書き方(61 §2)/ §3 の効力オラクル(テンプレ 62 §5+prompts/phase7)。
+Phase 7 = candidate / validated ×2 へ更新(FINDINGS §7.6 / WHITEPAPER §12)。
