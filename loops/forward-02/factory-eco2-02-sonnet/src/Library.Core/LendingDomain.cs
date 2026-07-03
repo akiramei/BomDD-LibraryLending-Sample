@@ -8,7 +8,8 @@ namespace Library.Core;
 /// </summary>
 public static class LendingDomain
 {
-    public const int LoanPeriodDays = 14;
+    public const int LoanPeriodDaysStandard = 14;
+    public const int LoanPeriodDaysPremium = 21;
     public const int MaxActiveLoansStandard = 3;
     public const int MaxActiveLoansPremium = 5;
     public const int FinePerOverdueDay = 100;
@@ -20,13 +21,24 @@ public static class LendingDomain
         _ => MaxActiveLoansStandard,
     };
 
+    /// <summary>Loan period in calendar days for a member type (REQ-003 rev2/ECO-002: standard=14 / premium=21).</summary>
+    public static int LoanPeriodDays(MemberType memberType) => memberType switch
+    {
+        MemberType.Premium => LoanPeriodDaysPremium,
+        _ => LoanPeriodDaysStandard,
+    };
+
     /// <summary>UTC calendar day of an instant.</summary>
     public static DateOnly UtcDate(DateTimeOffset instant)
         => DateOnly.FromDateTime(instant.UtcDateTime);
 
-    /// <summary>dueDateUtc = UTC calendar day of loanedAt + 14 days (calendar addition; time-of-day ignored).</summary>
-    public static DateOnly DueDate(DateTimeOffset loanedAtUtc)
-        => UtcDate(loanedAtUtc).AddDays(LoanPeriodDays);
+    /// <summary>
+    /// dueDateUtc = UTC calendar day of loanedAt + member-type-dependent days (standard=14 / premium=21;
+    /// calendar addition, time-of-day ignored). REQ-003 rev2/ECO-002. Effectivity: this is evaluated only
+    /// at loan-creation time; the result is persisted and never recomputed (FMEA-006).
+    /// </summary>
+    public static DateOnly DueDate(DateTimeOffset loanedAtUtc, MemberType memberType)
+        => UtcDate(loanedAtUtc).AddDays(LoanPeriodDays(memberType));
 
     /// <summary>fineAmount = max(0, (UtcDate(returnedAt) - dueDate) days) * 100. Integer only.</summary>
     public static int Fine(DateTimeOffset returnedAtUtc, DateOnly dueDate)

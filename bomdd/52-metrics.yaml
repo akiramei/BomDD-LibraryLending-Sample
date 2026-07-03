@@ -101,6 +101,30 @@ exploratory_variance:                  # 合否非混在(分散の観測のみ)
     unnecessary_modification: 0
     note: 自己受入31/31。移行方式が opus と独立に一致(user_version+ALTER=K-BOM の一意化効果)
 
+  # --- forward-02(ECO-002 部分再製造。oracle v4 = S01-S28 + effectivity E01-E04 + migration 回帰) ---
+  - loop: forward-02
+    factory: factory-eco2-01(opus, fresh, v0.3ソース改修)
+    bom_rev: rev4(tag forward-02-input)
+    raw_match: '28/28 + effectivity 4/4 + migration 4/4'
+    regression: 0
+    change_miss: 0
+    data_preservation_miss: 0
+    effectivity_violation: 0
+    unnecessary_modification: 0
+    impact_prediction: "under-inclusion 1(Program.cs 配線1行=事前申告つき)/ over-inclusion 0。E-BOM 粒度予測(E-DUE-FINE-001 のみ=1/12)は的中・外れは品目→unit 写像(実装が1品目を unit 横断に分布)"
+    note: 自己受入37/37。採用個体(v0.4)。ハーネスの Debug/Release 構成不一致を検出・申告(既存債務・ECO 外)
+  - loop: forward-02
+    factory: factory-eco2-02(sonnet, fresh, v0.3ソース改修)
+    bom_rev: rev4
+    raw_match: '28/28 + effectivity 4/4 + migration 4/4'
+    regression: 0
+    change_miss: 0
+    data_preservation_miss: 0
+    effectivity_violation: 0
+    unnecessary_modification: 0
+    impact_prediction: "under-inclusion の同一1行に独立収束(Program.cs diff は opus と blob 同一)= 取りこぼしは工場でなく影響分析に宿る"
+    note: 自己受入37/37。Core 側の定数命名は opus と分岐(BOM 未指定次元の裁量分散・挙動同一)
+
 process_metrics:
   g2_readers: 3(opus/sonnet/haiku)
   g2_ambiguity_findings: { opus: 17, sonnet: 13, haiku: 17, 共通指摘: 6 }

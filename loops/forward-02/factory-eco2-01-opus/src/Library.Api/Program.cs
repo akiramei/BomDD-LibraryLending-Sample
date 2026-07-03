@@ -117,7 +117,7 @@ app.MapPost("/v1/loans", async (HttpContext http) =>
         ctx =>
         {
             var decision = LendingDecisions.EvaluateLoan(ctx);
-            var dueText = UtcInstant.FormatDate(LendingDomain.DueDate(ctx.LoanedAtUtc));
+            var dueText = UtcInstant.FormatDate(LendingDomain.DueDate(ctx.LoanedAtUtc, ctx.MemberType));
             return (decision, dueText);
         });
 

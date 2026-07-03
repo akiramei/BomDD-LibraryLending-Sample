@@ -9,6 +9,7 @@ namespace Library.Core;
 public static class LendingDomain
 {
     public const int LoanPeriodDays = 14;
+    public const int LoanPeriodPremiumDays = 21;
     public const int MaxActiveLoansStandard = 3;
     public const int MaxActiveLoansPremium = 5;
     public const int FinePerOverdueDay = 100;
@@ -24,9 +25,20 @@ public static class LendingDomain
     public static DateOnly UtcDate(DateTimeOffset instant)
         => DateOnly.FromDateTime(instant.UtcDateTime);
 
-    /// <summary>dueDateUtc = UTC calendar day of loanedAt + 14 days (calendar addition; time-of-day ignored).</summary>
-    public static DateOnly DueDate(DateTimeOffset loanedAtUtc)
-        => UtcDate(loanedAtUtc).AddDays(LoanPeriodDays);
+    /// <summary>Loan-period days for a member type (rev4/ECO-002: standard=14 / premium=21).</summary>
+    public static int LoanPeriod(MemberType memberType) => memberType switch
+    {
+        MemberType.Premium => LoanPeriodPremiumDays,
+        _ => LoanPeriodDays,
+    };
+
+    /// <summary>
+    /// dueDateUtc = UTC calendar day of loanedAt + type-dependent period (rev4/ECO-002:
+    /// standard=14 / premium=21 days; calendar addition; time-of-day ignored). Fixed at loan
+    /// creation (effectivity §2.4): the returned value is persisted and never recomputed.
+    /// </summary>
+    public static DateOnly DueDate(DateTimeOffset loanedAtUtc, MemberType memberType)
+        => UtcDate(loanedAtUtc).AddDays(LoanPeriod(memberType));
 
     /// <summary>fineAmount = max(0, (UtcDate(returnedAt) - dueDate) days) * 100. Integer only.</summary>
     public static int Fine(DateTimeOffset returnedAtUtc, DateOnly dueDate)

@@ -25,7 +25,8 @@ public static class UnitChecks
         return v;
     }
 
-    private static DateOnly Due(string z) => LendingDomain.DueDate(Inst(z));
+    private static DateOnly Due(string z, MemberType memberType = MemberType.Standard) =>
+        LendingDomain.DueDate(Inst(z), memberType);
 
     // CP-CORE-AVAIL-001: copies=1 1st ok/2nd no_copies; return restores; copies=2 two ok/3rd reject.
     private static void AvailCheck(Harness h)
@@ -108,15 +109,24 @@ public static class UnitChecks
             LendingDomain.LoanLimit(MemberType.Premium) == 5);
     }
 
-    // CP-CORE-DUE-001: +14 calendar days, month/year rollover, time irrelevant.
+    // CP-CORE-DUE-001 rev4 (ECO-002): standard +14 / premium +21 calendar days, month/year rollover,
+    // time irrelevant.
     private static void DueCheck(Harness h)
     {
-        h.Check("CP-CORE-DUE-001/2026-01-31 -> 2026-02-14 (month rollover)",
-            UtcInstant.FormatDate(Due("2026-01-31T10:00:00Z")) == "2026-02-14");
-        h.Check("CP-CORE-DUE-001/2026-12-25 -> 2027-01-08 (year rollover)",
-            UtcInstant.FormatDate(Due("2026-12-25T00:00:00Z")) == "2027-01-08");
-        h.Check("CP-CORE-DUE-001/2026-06-10T23:59:59Z -> 2026-06-24 (time irrelevant)",
-            UtcInstant.FormatDate(Due("2026-06-10T23:59:59Z")) == "2026-06-24");
+        h.Check("CP-CORE-DUE-001/standard 2026-01-31 -> 2026-02-14 (month rollover)",
+            UtcInstant.FormatDate(Due("2026-01-31T10:00:00Z", MemberType.Standard)) == "2026-02-14");
+        h.Check("CP-CORE-DUE-001/standard 2026-12-25 -> 2027-01-08 (year rollover)",
+            UtcInstant.FormatDate(Due("2026-12-25T00:00:00Z", MemberType.Standard)) == "2027-01-08");
+        h.Check("CP-CORE-DUE-001/standard 2026-06-10T23:59:59Z -> 2026-06-24 (time irrelevant)",
+            UtcInstant.FormatDate(Due("2026-06-10T23:59:59Z", MemberType.Standard)) == "2026-06-24");
+
+        // premium (rev4/ECO-002): +21 calendar days.
+        h.Check("CP-CORE-DUE-001/premium 2026-01-31 -> 2026-02-21 (month rollover)",
+            UtcInstant.FormatDate(Due("2026-01-31T10:00:00Z", MemberType.Premium)) == "2026-02-21");
+        h.Check("CP-CORE-DUE-001/premium 2026-12-25 -> 2027-01-15 (year rollover)",
+            UtcInstant.FormatDate(Due("2026-12-25T00:00:00Z", MemberType.Premium)) == "2027-01-15");
+        h.Check("CP-CORE-DUE-001/premium 2026-06-10T23:59:59Z -> 2026-07-01 (time irrelevant, month-end rollover)",
+            UtcInstant.FormatDate(Due("2026-06-10T23:59:59Z", MemberType.Premium)) == "2026-07-01");
     }
 
     // CP-CORE-FINE-001: same-day 0, next-day 100, +3d 300, early 0.

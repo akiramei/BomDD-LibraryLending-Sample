@@ -1,0 +1,32 @@
+{
+  "results": [
+    {
+      "id": "E01",
+      "actual": "A=True B=True std=True prem=True fine=True",
+      "pass": true,
+      "expected": "books avail / 両会員の loans(件数・順序・status)/ returned fine = manifest 同値"
+    },
+    {
+      "id": "E02",
+      "actual": "2026-05-15,2026-05-16",
+      "pass": true,
+      "expected": "existing premium dues = 2026-05-15,2026-05-16(+14日のまま)"
+    },
+    {
+      "id": "E03",
+      "actual": "201 due=2026-05-31",
+      "pass": true,
+      "expected": "201 / dueDateUtc=2026-05-31(5/10+21日)"
+    },
+    {
+      "id": "E04",
+      "actual": "200 fine=100",
+      "pass": true,
+      "expected": "200 / fine=100(確定 due 2026-05-16 の翌日返却)"
+    }
+  ],
+  "pass": 4,
+  "total": 4,
+  "factory": "loops\\forward-02\\factory-eco2-02-sonnet",
+  "oracle": "effectivity E01-E04"
+}

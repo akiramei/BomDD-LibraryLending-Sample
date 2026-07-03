@@ -1,0 +1,193 @@
+{
+  "total": 28,
+  "probes": {
+    "datetimeEcho": [
+      "2026-01-31T10:00:00Z",
+      "2026-03-02T09:00:00Z"
+    ],
+    "latencyMs": 6.0,
+    "errorMessages": [
+      "title is required and must be 1..200 chars",
+      "resource not found"
+    ],
+    "ids": [
+      "bk_d158196fe15d435a88b26a8f5f9893be",
+      "mb_22fbfe5887844b568d778e2e072d75f0",
+      "ln_0817f721cb4e4af2a5ba47bf3139df92"
+    ],
+    "extraFields": {}
+  },
+  "pass": 28,
+  "results": [
+    {
+      "expected": "201 bk_* copies=2 avail=2",
+      "actual": "201 id=bk_d158196fe15d435a88b26a8f5f9893be avail=2",
+      "id": "S01",
+      "pass": true
+    },
+    {
+      "expected": "201 mb_*",
+      "actual": "201 id=mb_22fbfe5887844b568d778e2e072d75f0",
+      "id": "S02",
+      "pass": true
+    },
+    {
+      "expected": "400/invalid_request",
+      "actual": "400/invalid_request",
+      "id": "S03",
+      "pass": true
+    },
+    {
+      "expected": "404/not_found",
+      "actual": "404/not_found",
+      "id": "S04",
+      "pass": true
+    },
+    {
+      "expected": "201 due=2026-02-14 active",
+      "actual": "201 due=2026-02-14 status=active",
+      "id": "S05",
+      "pass": true
+    },
+    {
+      "expected": "2nd=201, 3rd=409/no_copies_available",
+      "actual": "2nd=201 3rd=409/no_copies_available",
+      "id": "S06",
+      "pass": true
+    },
+    {
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded",
+      "actual": "1-3=201,201,201 4th=409/loan_limit_exceeded",
+      "id": "S07",
+      "pass": true
+    },
+    {
+      "expected": "400/invalid_request (+09:00)",
+      "actual": "400/invalid_request",
+      "id": "S08",
+      "pass": true
+    },
+    {
+      "expected": "400/invalid_request (+00:00)",
+      "actual": "400/invalid_request",
+      "id": "S09",
+      "pass": true
+    },
+    {
+      "expected": "201 (.123Z accepted)",
+      "actual": "201",
+      "id": "S10",
+      "pass": true
+    },
+    {
+      "expected": "200 fine=0 (due-day 23:59:59Z)",
+      "actual": "200 fine=0",
+      "id": "S11",
+      "pass": true
+    },
+    {
+      "expected": "200 fine=100 (due+1 00:00:00Z)",
+      "actual": "200 fine=100",
+      "id": "S12",
+      "pass": true
+    },
+    {
+      "expected": "200 fine=300 (due+3)",
+      "actual": "200 fine=300",
+      "id": "S13",
+      "pass": true
+    },
+    {
+      "expected": "409/already_returned",
+      "actual": "409/already_returned",
+      "id": "S14",
+      "pass": true
+    },
+    {
+      "expected": "409/member_overdue_blocked (due+1)",
+      "actual": "409/member_overdue_blocked",
+      "id": "S15",
+      "pass": true
+    },
+    {
+      "expected": "201 (due-day not blocked)",
+      "actual": "201",
+      "id": "S16",
+      "pass": true
+    },
+    {
+      "expected": "400/invalid_request (instant past)",
+      "actual": "400/invalid_request",
+      "id": "S17",
+      "pass": true
+    },
+    {
+      "expected": "order(oldest,id-ordinal) + shape",
+      "actual": "count=3 order=True shape=True",
+      "id": "S18",
+      "pass": true
+    },
+    {
+      "expected": "prefix + 32 lowercase hex",
+      "actual": "checked=3 bad=",
+      "id": "S21",
+      "pass": true
+    },
+    {
+      "expected": "S05=2026-01-31T10:00:00Z / S10=2026-03-02T09:00:00Z (exact)",
+      "actual": "S05=2026-01-31T10:00:00Z S10=2026-03-02T09:00:00Z",
+      "id": "S22",
+      "pass": true
+    },
+    {
+      "expected": "empty/whitespace ids and ?memberId= all 400/invalid_request",
+      "actual": "bookId='' 400/invalid_request / memberId='   ' 400/invalid_request / ?memberId= 400/invalid_request",
+      "id": "S23",
+      "pass": true
+    },
+    {
+      "expected": "premium=201/premium, default=201/standard, gold=400",
+      "actual": "prem=201/premium def=201/standard bad=400/invalid_request",
+      "id": "S24",
+      "pass": true
+    },
+    {
+      "expected": "1-5=201, 6th=409/loan_limit_exceeded",
+      "actual": "1-5ok=True 6th=409/loan_limit_exceeded",
+      "id": "S25",
+      "pass": true
+    },
+    {
+      "expected": "premium 1/31->2026-02-21, 12/25->2027-01-15 / standard対照 1/31->2026-02-14",
+      "actual": "premA=201/2026-02-21 premB=201/2027-01-15 std=201/2026-02-14",
+      "id": "S26",
+      "pass": true
+    },
+    {
+      "expected": "premium due-day(+21) 23:59:59Z=0 / due+1 00:00:00Z=100",
+      "actual": "t1=200/fine=0 t2=200/fine=100",
+      "id": "S27",
+      "pass": true
+    },
+    {
+      "expected": "due-day(+21)=201 / due+1=409 member_overdue_blocked",
+      "actual": "u1=201 u2=201 u3=409/member_overdue_blocked",
+      "id": "S28",
+      "pass": true
+    },
+    {
+      "expected": "restart-survives (avail/loans/status equal)",
+      "actual": "avail 0->0 loans 3->3 ids-equal=True",
+      "id": "S19",
+      "pass": true
+    },
+    {
+      "expected": "median<300ms over 50 seq POST",
+      "actual": "median=6ms n=50",
+      "id": "S20",
+      "pass": true
+    }
+  ],
+  "oracle": "fixed oracle S01-S28 (rev4/ECO-002)",
+  "factory": "loops\\forward-02\\factory-eco2-01-opus"
+}

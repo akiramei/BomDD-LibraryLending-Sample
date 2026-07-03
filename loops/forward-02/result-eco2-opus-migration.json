@@ -1,0 +1,32 @@
+{
+  "factory": "loops\\forward-02\\factory-eco2-01-opus",
+  "pass": 4,
+  "results": [
+    {
+      "actual": "ready=True",
+      "pass": true,
+      "id": "M01",
+      "expected": "v0.2 DB で起動(移行実行)"
+    },
+    {
+      "actual": "A=True B=True m1=True m2=True",
+      "pass": true,
+      "id": "M02",
+      "expected": "books avail / m1 loans(3件・順序・status) / m2 空 = manifest 同値"
+    },
+    {
+      "actual": "fine=100",
+      "pass": true,
+      "id": "M04",
+      "expected": "returned fine=100 保持"
+    },
+    {
+      "actual": "3rd=201 4th=409/loan_limit_exceeded",
+      "pass": true,
+      "id": "M03",
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded(既存会員=standard)"
+    }
+  ],
+  "total": 4,
+  "oracle": "migration M01-M04"
+}
