@@ -71,5 +71,5 @@ degradation_events:
     source_ref: 'forward-02 両工場の NU1903 申告(cheat-report)→ dotnet list package --vulnerable --include-transitive で設計者確定 → gh api /advisories/GHSA-2m69-gcr7-jv3q で範囲確定'
     affected:
       - SB-SQLITE-STORE-001   # 逆引き: 他 SB item は当該パッケージ非依存(再検査不要)
-    reinspection_result: ~    # ECO-003 適用後に記入
+    reinspection_result: '合格(2026-07-04): V01 1/1(脆弱 0 件)+全回帰 S01–S28 28/28+E01–E04 4/4+M01–M04 4/4。diff = csproj 2 行のみ(.cs 不変)。新個体 = v0.5-forward-03(part-swap-01)'
     decision: '部品交換+全再認証(ECO-003): Microsoft.Data.Sqlite 9.0.0 → 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3 直接参照(α+γ。akira 裁定 2026-07-04 — 当初裁定 α 単独は scratch 検証で不成立と判明し再裁定=実装検証が裁定を確定する、の調達版)'

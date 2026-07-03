@@ -125,6 +125,17 @@ exploratory_variance:                  # 合否非混在(分散の観測のみ)
     impact_prediction: "under-inclusion の同一1行に独立収束(Program.cs diff は opus と blob 同一)= 取りこぼしは工場でなく影響分析に宿る"
     note: 自己受入37/37。Core 側の定数命名は opus と分岐(BOM 未指定次元の裁量分散・挙動同一)
 
+  # --- forward-03(ECO-003 = Service BOM 複合イベント。調達部品交換・設計者適用+全再認証) ---
+  - loop: forward-03
+    factory: part-swap-01(設計者適用。fresh 工場なし=コード製造なしの調達交換)
+    bom_rev: rev4+procurement(tag forward-03-input)
+    raw_match: '28/28 + effectivity 4/4 + migration 4/4 + V01 1/1'
+    regression: 0
+    change_miss: 0
+    unnecessary_modification: 0
+    impact_prediction: "全 .cs diff ゼロ = 的中(diff は csproj 2 行のみ)"
+    note: "DEG-001(GHSA-2m69-gcr7-jv3q High)→ Service BOM 逆引き(1/3 SB)→ 処置再裁定(α 単独不成立→α+γ)→ 交換 → 全再認証。処置語彙「部品交換+全再認証」の初データ。採用個体= v0.5。劣化検出の出所は forward-02 工場の NU1903 正直申告"
+
 process_metrics:
   g2_readers: 3(opus/sonnet/haiku)
   g2_ambiguity_findings: { opus: 17, sonnet: 13, haiku: 17, 共通指摘: 6 }
