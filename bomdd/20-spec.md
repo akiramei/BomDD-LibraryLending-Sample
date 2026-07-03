@@ -2,6 +2,7 @@
 
 > 製造パッケージに含まれる。REQ への双方向トレースを保つ(§5)。
 > rev1: マルチリーダー監査(G2)が検出した曖昧箇所を固定した(ゲート記録参照)。
+> rev4(ECO-002・2026-07-04): 貸出期間を会員区分依存に(standard=14日 / premium=21日)+効力=貸出作成時点(§2.4)。REQ-003 rev2。
 
 ## 1. 概要と用語
 図書館の蔵書貸出を管理する HTTP API。**蔵書(book)**は部数(copies)を持つ。**会員(member)**は蔵書を**貸出(loan)**し、**返却(return)**する。返却されていない貸出を **active loan** と呼ぶ。
@@ -40,7 +41,8 @@
   3. 会員が延滞中 → **409** `member_overdue_blocked`。**延滞中** = その会員の active loan の**いずれか 1 件でも** `UTC暦日(loanedAtUtc) > dueDateUtc`(INV-3)
   4. 会員の active loan が区分上限(standard=3 / premium=5)に達している(INV-2 rev3)→ **409** `loan_limit_exceeded`
   5. 蔵書の availableCopies == 0(INV-1)→ **409** `no_copies_available`
-- `dueDateUtc` = UTC暦日(loanedAtUtc) + 14日(暦日加算。例 `1/31 → 2/14`、`12/25 → 翌年 1/8`)。**`yyyy-MM-dd` の 10 文字文字列**(時刻部なし)。
+- `dueDateUtc` = UTC暦日(loanedAtUtc) + **区分依存日数**(rev4/ECO-002: standard = **14日** / premium = **21日**。暦日加算。standard 例 `1/31 → 2/14`、premium 例 `1/31 → 2/21`・`12/25 → 翌年 1/15`)。**`yyyy-MM-dd` の 10 文字文字列**(時刻部なし)。
+- **効力(rev4/ECO-002)**: `dueDateUtc` は**貸出作成時に確定**し、以後の規則・区分の変更に追従しない。既存貸出(本改訂前に作成)の期限は従来の値のまま(遡及しない)。延滞判定(§2.4-3)・延滞料金(§2.5)は常に**その貸出の確定済み dueDateUtc** を基準にする(期間日数を判定側で再計算しない)。
 - `loanedAtUtc`(応答)= 入力と同一瞬時(秒未満切り捨て)を **`yyyy-MM-ddTHH:mm:ssZ` 固定形式**で返す(§1 出力形式。rev2 で固定)。
 
 ### 2.5 返却 — POST /v1/loans/{id}/return (REQ-003, REQ-007)

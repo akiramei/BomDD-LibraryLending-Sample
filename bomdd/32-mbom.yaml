@@ -110,6 +110,11 @@ fmea:
     failure_mode: 返却済み貸出が在庫・上限カウントに残り続ける
     effect: REQ-001/002 違反(貸せるのに拒否)
     targeted_by: CP-CORE-AVAIL-001 / CP-CORE-LIMIT-001(返却後の復元 vectors)
+  - id: FMEA-006   # rev4(ECO-002)
+    unit: M-CORE-LENDING-001
+    failure_mode: 期間日数を延滞判定・料金側で再計算する(確定済み dueDateUtc でなく loanedAt+日数を再導出)
+    effect: REQ-003 rev2 違反 — 既存貸出の期限が遡及変更され、既存 premium 会員の延滞判定・料金が変わる
+    targeted_by: 効力オラクル E02/E04(既存貸出の dueDateUtc・返却料金の保存)
 
 # 沈黙次元の第2回掃討(silence-checklist 全行。deferred は全て解消済み)
 silence_sweep:

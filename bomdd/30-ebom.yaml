@@ -53,13 +53,15 @@ ebom:
       acceptance_refs: [CP-MIGRATION-001]
 
     - id: E-DUE-FINE-001
-      name: 期限・延滞料金計算
+      name: 期限・延滞料金計算(rev4: 区分依存期間+効力=作成時点)
       classification: core
       rationale_type: requirement
       requirement_refs: [REQ-003]
+      depends_on: [E-MEMBER-TYPE-001]   # rev4(ECO-002): 期間が区分依存に
       kbom_refs: [K-UTC-ISO8601-001]
       invariants:
-        - dueDateUtc = UTC暦日(loanedAtUtc) + 14日(暦日加算。時刻は使わない)
+        - dueDateUtc = UTC暦日(loanedAtUtc) + 区分依存日数(standard=14 / premium=21。暦日加算。時刻は使わない)(rev4)
+        - dueDateUtc は貸出作成時に確定し遡及しない。延滞判定・料金は確定済み dueDateUtc が基準(期間日数を判定側で再計算しない)(rev4)
         - fineAmount = max(0, 暦日差(UTC暦日(returnedAtUtc) − dueDateUtc)) × 100(整数演算のみ)
         - 期限日当日の返却(時刻不問)= 0 / 期限翌日 00:00:00Z = 100 / 早期返却 = 0
       acceptance_refs: [CP-CORE-DUE-001, CP-CORE-FINE-001]

@@ -62,7 +62,7 @@ control_plan:
       approver: automated
 
     - id: CP-CORE-DUE-001
-      characteristic: dueDateUtc = UTC暦日 + 14日(暦日加算)
+      characteristic: dueDateUtc = UTC暦日 + 区分依存日数(standard=14 / premium=21。暦日加算)(rev4/ECO-002)
       classification: core
       depth: unit
       tolerance: exact
@@ -70,9 +70,12 @@ control_plan:
       oracle: dueDateUtc 文字列(yyyy-MM-dd)の一致
       approver: automated
       test_vectors:
-        - 2026-01-31T10:00:00Z → 2026-02-14(月またぎ)
-        - 2026-12-25T00:00:00Z → 2027-01-08(年またぎ)
-        - 2026-06-10T23:59:59Z → 2026-06-24(時刻無関係)
+        - standard 2026-01-31T10:00:00Z → 2026-02-14(月またぎ)
+        - standard 2026-12-25T00:00:00Z → 2027-01-08(年またぎ)
+        - standard 2026-06-10T23:59:59Z → 2026-06-24(時刻無関係)
+        - premium 2026-01-31T10:00:00Z → 2026-02-21(月またぎ・rev4)
+        - premium 2026-12-25T00:00:00Z → 2027-01-15(年またぎ・rev4)
+        - premium 2026-06-10T23:59:59Z → 2026-07-01(時刻無関係・月末跨ぎ・rev4)
 
     - id: CP-CORE-FINE-001
       characteristic: fineAmount = max(0, 暦日差) × 100

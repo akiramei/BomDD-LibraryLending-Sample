@@ -55,6 +55,10 @@ fixed_oracle:
     # --- v3(rev3 = ECO-001。ループ境界で追加。S01-S23 は不変) ---
     - { id: S24, scenario: 会員区分(premium 指定 / 未指定 / 不正値 gold), expect: '201 memberType=premium / 201 memberType=standard / 400 invalid_request', spec_ref: §2.3(rev3), depth: L3 }
     - { id: S25, scenario: premium 会員の上限(同一蔵書で5冊+6冊目), expect: '5冊目=201, 6冊目=409 loan_limit_exceeded', spec_ref: §2.4-4(rev3), depth: L3 }
+    # --- v4(rev4 = ECO-002。ループ境界で追加。S01-S25 は不変 — S25 は dueDateUtc を検査していないため premium 期間変更の影響を受けない[凍結前確認済み]) ---
+    - { id: S26, scenario: premium 会員の新規貸出の期限(1/31 と 12/25), expect: '201 / dueDateUtc=2026-02-21(月またぎ)・2027-01-15(年またぎ)。同時に standard は 2026-02-14 のまま(S05 回帰と独立に同一ラン内で対照)', spec_ref: §2.4(rev4), depth: L3 }
+    - { id: S27, scenario: premium の返却料金境界(期限=+21日に自動追従), expect: '期限日(+21日)当日 23:59:59Z 返却=0 / 期限翌日 00:00:00Z=100', spec_ref: §2.5+§2.4(rev4。料金規則は不変=確定済み dueDateUtc 基準), depth: L3 }
+    - { id: S28, scenario: premium の延滞ブロック境界(期限=+21日に自動追従), expect: '期限日(+21日)当日の新規貸出=201 / 期限+1日=409 member_overdue_blocked', spec_ref: §2.4-3+INV-3(rev4。判定規則は不変=確定済み dueDateUtc 基準), depth: L3 }
 
 # マイグレーション専用オラクル(rev3 新設。fixture ベース。詳細は 60-change-order-eco-001.md §5)
 migration_oracle:
@@ -66,3 +70,16 @@ migration_oracle:
     - { id: M02, check: 既存の蔵書(copies/avail)・貸出一覧(件数・status・並び)が manifest と同値, fail_class: data-preservation miss }
     - { id: M03, check: 既存会員(active 2件)が 3冊目=201・4冊目=409(既定 standard の上限適用), fail_class: change miss }
     - { id: M04, check: 既存 returned 貸出の fineAmount 保持, fail_class: data-preservation miss }
+
+# 効力(effectivity)専用オラクル(rev4 = ECO-002 新設。fixture ベース。詳細は 60-change-order-eco-002.md §5)
+# ECO-002 はスキーマ変更なし=移行イベントなし。それでも「既存データ上で規則変更が正しく振る舞うか」
+# (遡及なし+新規のみ新規則)は fixture でしか検査できない — 移行オラクルの一般化(effectivity 版)。
+effectivity_oracle:
+  jig: oracle/effectivity-oracle.ps1
+  fixture: oracle/fixtures/baseline-v03.db + baseline-v03-manifest.json(As-Maintained 個体 factory-eco-01-opus の v0.3 ビルドで作成。standard/premium 各会員の active 貸出[旧規則 +14日]と returned 貸出を含む)
+  calibration: 'negative control = v0.3 個体(factory-eco-01-opus)に対して実行し E01/E02/E04 が PASS(既存データ保持は変更前でも成立)・E03 が FAIL(弁別力=変更前は premium 新規も +14日)を確認してから凍結'
+  cases:
+    - { id: E01, check: v0.3 の DB で rev4 が起動し、既存の蔵書・会員・貸出一覧(件数・status・並び)が manifest と同値, fail_class: data-preservation miss }
+    - { id: E02, check: 既存 premium 会員の既存 active 貸出の dueDateUtc が manifest と同値(= +14日のまま。遡及しない), fail_class: data-preservation miss(効力違反) }
+    - { id: E03, check: 同じ既存 premium 会員の新規貸出は dueDateUtc = +21日(新規則は新規貸出のみ), fail_class: change miss }
+    - { id: E04, check: 既存 premium 会員の既存 active 貸出を旧期限+1日で返却すると fineAmount=100(料金が確定済み dueDateUtc 基準=遡及計算しない。FMEA-006 狙い撃ち), fail_class: data-preservation miss(効力違反) }

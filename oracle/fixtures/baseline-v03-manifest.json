@@ -1,0 +1,47 @@
+{
+  "mPrem_loans_ordered": [
+    {
+      "id": "ln_37b9788e11bb4610bf18376f8bcb32a4",
+      "dueDateUtc": "2026-05-15",
+      "status": "active"
+    },
+    {
+      "id": "ln_c0eb9b9c05ef4f9fa030b7856ccc9d5d",
+      "dueDateUtc": "2026-05-16",
+      "status": "active"
+    }
+  ],
+  "mStd": {
+    "active_loans": 1,
+    "id": "mb_d395110ddd004721868fbfcfe5f16568",
+    "memberType": "standard"
+  },
+  "mStd_loans_ordered": [
+    {
+      "fineAmount": 100,
+      "id": "ln_c87e1ae497ed4d8383c5aaeca70c26bb",
+      "status": "returned"
+    },
+    {
+      "id": "ln_214bcf2783224478879a5e700f1f63b8",
+      "dueDateUtc": "2026-05-15",
+      "status": "active"
+    }
+  ],
+  "bookB": {
+    "id": "bk_fa44740a83a940db97a0effd297a2ee7",
+    "copies": 5,
+    "availableCopies": 4
+  },
+  "created_from": "factory-eco-01-opus (v0.3-forward-015)",
+  "mPrem": {
+    "active_loans": 2,
+    "id": "mb_d389eee5b6be4906b01bd7024f217d6c",
+    "memberType": "premium"
+  },
+  "bookA": {
+    "id": "bk_7931fbf2f92c41bdb8d1e88dafb9dd86",
+    "copies": 3,
+    "availableCopies": 1
+  }
+}

@@ -320,6 +320,38 @@ $t6 = Test-ErrorShape $r6 409 'loan_limit_exceeded'
 $ok = $p5ok -and $t6.ok
 Add-Result 'S25' $ok '1-5=201, 6th=409/loan_limit_exceeded' ("1-5ok={0} 6th={1}" -f $p5ok, $t6.desc)
 
+# --- S26 premium の期限(v4/rev4 = ECO-002 で追加。standard 対照を同一ラン内に置く) ---
+$rSamA = Invoke-Api POST '/v1/members' @{ name = 'SamA'; memberType = 'premium' }
+$rSamB = Invoke-Api POST '/v1/members' @{ name = 'SamB'; memberType = 'premium' }
+$samC = New-Member 'SamC-standard'
+$lA = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = [string]$rSamA.body.id; loanedAtUtc = '2026-01-31T10:00:00Z' }
+$lB = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = [string]$rSamB.body.id; loanedAtUtc = '2026-12-25T00:00:00Z' }
+$lC = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $samC; loanedAtUtc = '2026-01-31T10:00:00Z' }
+$ok = ($lA.status -eq 201) -and ($lA.body.dueDateUtc -eq '2026-02-21') -and
+      ($lB.status -eq 201) -and ($lB.body.dueDateUtc -eq '2027-01-15') -and
+      ($lC.status -eq 201) -and ($lC.body.dueDateUtc -eq '2026-02-14')
+Add-Result 'S26' $ok 'premium 1/31->2026-02-21, 12/25->2027-01-15 / standard対照 1/31->2026-02-14' ("premA={0}/{1} premB={2}/{3} std={4}/{5}" -f $lA.status, $lA.body.dueDateUtc, $lB.status, $lB.body.dueDateUtc, $lC.status, $lC.body.dueDateUtc)
+
+# --- S27 premium の返却料金境界(期限=+21日に自動追従。v4/rev4) ---
+$rTina = Invoke-Api POST '/v1/members' @{ name = 'Tina27'; memberType = 'premium' }
+$tinaId = [string]$rTina.body.id
+$t1 = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $tinaId; loanedAtUtc = '2026-06-01T09:00:00Z' }   # premium due 2026-06-22
+$rt1 = Invoke-Api POST "/v1/loans/$($t1.body.id)/return" @{ returnedAtUtc = '2026-06-22T23:59:59Z' }
+$t2 = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $tinaId; loanedAtUtc = '2026-06-01T09:00:00Z' }
+$rt2 = Invoke-Api POST "/v1/loans/$($t2.body.id)/return" @{ returnedAtUtc = '2026-06-23T00:00:00Z' }
+$ok = ($rt1.status -eq 200) -and ($rt1.body.fineAmount -eq 0) -and ($rt2.status -eq 200) -and ($rt2.body.fineAmount -eq 100)
+Add-Result 'S27' $ok 'premium due-day(+21) 23:59:59Z=0 / due+1 00:00:00Z=100' ("t1={0}/fine={1} t2={2}/fine={3}" -f $rt1.status, $rt1.body.fineAmount, $rt2.status, $rt2.body.fineAmount)
+
+# --- S28 premium の延滞ブロック境界(期限=+21日に自動追従。v4/rev4) ---
+$rUma = Invoke-Api POST '/v1/members' @{ name = 'Uma28'; memberType = 'premium' }
+$umaId = [string]$rUma.body.id
+$u1 = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $umaId; loanedAtUtc = '2026-06-01T09:00:00Z' }    # due 2026-06-22, 未返却
+$u2 = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $umaId; loanedAtUtc = '2026-06-22T22:00:00Z' }    # 期限日当日 = まだ延滞でない
+$u3 = Invoke-Api POST '/v1/loans' @{ bookId = $bigBook; memberId = $umaId; loanedAtUtc = '2026-06-23T08:00:00Z' }    # 期限+1日 = blocked
+$t3 = Test-ErrorShape $u3 409 'member_overdue_blocked'
+$ok = ($u1.status -eq 201) -and ($u2.status -eq 201) -and $t3.ok
+Add-Result 'S28' $ok 'due-day(+21)=201 / due+1=409 member_overdue_blocked' ("u1={0} u2={1} u3={2}" -f $u1.status, $u2.status, $t3.desc)
+
 # --- スナップショット(S19 用) ---
 $snapBook1 = Invoke-Api GET "/v1/books/$book1"
 $snapJudy = Invoke-Api GET "/v1/loans?memberId=$judy"
@@ -372,7 +404,7 @@ Add-Result 'S20' $ok 'median<300ms over 50 seq POST' ("median={0}ms n={1}" -f $m
 $probes.latencyMs = $median
 } catch {
   $executed = @($script:results | ForEach-Object { $_.id })
-  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S21','S22','S23','S24','S25','S19','S20')) {
+  foreach ($cid in @('S11','S12','S13','S14','S15','S16','S17','S18','S21','S22','S23','S24','S25','S26','S27','S28','S19','S20')) {
     if ($executed -notcontains $cid) {
       Add-Result $cid $false 'per 41-fixed-oracle.yaml' ("not-executed: seed blocked ({0})" -f $_.Exception.Message)
     }
@@ -385,7 +417,7 @@ Stop-Api
 $passCount = @($script:results | Where-Object { $_.pass }).Count
 $summary = @{
   factory = $FactoryDir
-  oracle = 'forward-01 fixed oracle S01-S20'
+  oracle = 'fixed oracle S01-S28 (rev4/ECO-002)'
   pass = $passCount
   total = $script:results.Count
   results = $script:results
