@@ -21,6 +21,17 @@ public static class SmokeChecks
             return;
         }
 
+        // ECO-004: launch the newest *built* Library.Api.dll directly. The previous
+        // `dotnet run --no-build` silently defaulted to -c Debug, so a Release-only build
+        // made the smoke go red (configuration mismatch between harness and API child).
+        // Launching the last-built dll is configuration-agnostic (Debug/Release どちらでも可).
+        var apiDll = LocateNewestApiDll(apiProjectDir);
+        if (apiDll is null)
+        {
+            h.Check("L1-SMOKE/locate built Library.Api.dll (build the solution first)", false);
+            return;
+        }
+
         var dbPath = Path.Combine(Path.GetTempPath(), $"library-smoke-{Guid.NewGuid():N}.db");
         const string url = "http://127.0.0.1:5099";
 
@@ -30,12 +41,9 @@ public static class SmokeChecks
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            WorkingDirectory = apiProjectDir
+            WorkingDirectory = Path.GetDirectoryName(apiDll)!
         };
-        psi.ArgumentList.Add("run");
-        psi.ArgumentList.Add("--project");
-        psi.ArgumentList.Add(apiProjectDir);
-        psi.ArgumentList.Add("--no-build"); // built by the solution before the harness runs
+        psi.ArgumentList.Add(apiDll);
         psi.Environment["ASPNETCORE_URLS"] = url;
         psi.Environment["LIBRARY_DB_PATH"] = dbPath;
         psi.Environment["DOTNET_ENVIRONMENT"] = "Production";
@@ -133,6 +141,24 @@ public static class SmokeChecks
         try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
         try { proc.WaitForExit(5000); } catch { }
         proc.Dispose();
+    }
+
+    /// <summary>
+    /// Newest built Library.Api.dll under bin/ (any configuration/TFM) — i.e. whatever was
+    /// last built is what the smoke launches. Reference assemblies (ref/refint) are excluded.
+    /// </summary>
+    private static string? LocateNewestApiDll(string apiProjectDir)
+    {
+        var binDir = Path.Combine(apiProjectDir, "bin");
+        if (!Directory.Exists(binDir)) return null;
+        return Directory.EnumerateFiles(binDir, "Library.Api.dll", SearchOption.AllDirectories)
+            .Where(p =>
+            {
+                var parent = Path.GetFileName(Path.GetDirectoryName(p));
+                return parent != "ref" && parent != "refint";
+            })
+            .OrderByDescending(File.GetLastWriteTimeUtc)
+            .FirstOrDefault();
     }
 
     /// <summary>Walk up from the test assembly to find src/Library.Api.</summary>
