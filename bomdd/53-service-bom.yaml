@@ -21,6 +21,9 @@ service_bom:
         - kbom_ref: K-SQLITE-001
           version: v2   # ECO-003: Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3
           change_signal: NuGet security advisory(NU1903)/ upstream release / SQLite CVE
+          watch: CI 常設(.github/workflows/vulnerability-watch.yml — V01 を As-Maintained へ毎日実行。赤 run = DEG 検出通知。2026-07-04 常設化)
+          watch_items:
+            - 'retirement_condition(32-mbom): Microsoft.Data.Sqlite が SQLitePCLRaw 3.x を自身の依存として参照したら bundle 直接参照を外す(V01 は緑のままなので手動確認 — upstream リリースノート)'
       acceptance_depth: L3
       as_built_ref: v0.4-forward-02(factory-eco2-01-opus)
       reinspect_on_change:

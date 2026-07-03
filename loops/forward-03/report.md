@@ -48,6 +48,8 @@
 - 交換部品の互換性が高かった(挙動契約に差が出ないケース)。互換性が壊れる部品交換
   (回帰が赤になり再製造へ昇格するケース)は未観測。
 - Service BOM の watch は手動(dotnet list の随時実行)。CI 常設(NU1903 を warning→検査化)は次段候補。
+  → **常設済み(2026-07-04)**: .github/workflows/vulnerability-watch.yml(V01 を As-Maintained へ毎日+push 時に実行。
+  赤 run = DEG 検出通知)。V01 は FAIL で非ゼロ終了するよう改修(53 の watch 欄参照)。
 
 ---
 **method 還元済み(2026-07-04・BomDD 92ef701)**: §3 の 4 件 — ずる報告=劣化受信機(s-bom-template 手順1+templates/53)/
