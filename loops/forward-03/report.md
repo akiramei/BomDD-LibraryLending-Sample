@@ -50,4 +50,6 @@
 - Service BOM の watch は手動(dotnet list の随時実行)。CI 常設(NU1903 を warning→検査化)は次段候補。
 
 ---
-**method 還元候補(§3 の 4 件)は未還元**(次の還元ラウンドで s-bom-template / playbook §8 / templates 53 へ)。
+**method 還元済み(2026-07-04・BomDD 92ef701)**: §3 の 4 件 — ずる報告=劣化受信機(s-bom-template 手順1+templates/53)/
+調達処置はパッケージグラフ実測が一次資料(同 手順3+playbook §8)/ 処置語彙「部品交換+全再認証」(同 語彙+playbook §8)/
+retirement_condition(templates/32 procurement)。総括 = FINDINGS §7.7 / WHITEPAPER §12。
