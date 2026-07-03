@@ -78,9 +78,14 @@ mbom:
 
 procurement:
   - package: Microsoft.Data.Sqlite
-    version: 9.0.0    # この実験環境で NuGet 復元を確認済みのバージョンに意図的に固定(10.x への更新は ECO で扱う)
-    rationale: 軽量・単一ファイル・BCL外で最小の永続化。実現性確認済(2026-06-10)
+    version: 10.0.9   # ECO-003(2026-07-04): 9.0.0 → 10.0.9(DEG-001 = GHSA-2m69-gcr7-jv3q への処置。「10.x への更新は ECO で扱う」の履行)
+    rationale: 軽量・単一ファイル・BCL外で最小の永続化。実現性確認済(2026-06-10)/ 10.0.9 は scratch 事前検証+全再認証済み(ECO-003)
     license: MIT
+    substitutable: false
+  - package: SQLitePCLRaw.bundle_e_sqlite3
+    version: 3.0.3    # ECO-003(2026-07-04): 推移的依存の上書き(Microsoft.Data.Sqlite 10.x は脆弱な 2.1.11 を参照するため)
+    rationale: 'GHSA-2m69-gcr7-jv3q(<= 2.1.11 全て・2.1 系修正なし)の解消は 3.x 系のみ。退役条件: Microsoft.Data.Sqlite が 3.x 系を自身の依存として参照した時点で本直接参照を外す(推移的解決へ戻す)'
+    license: Apache-2.0
     substitutable: false
   # これ以外の NuGet パッケージは使わない(必要だと判断したらずる報告)
 

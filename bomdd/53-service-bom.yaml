@@ -1,0 +1,75 @@
+bomdd:
+  product: BomDD Library Lending Sample
+  experiment: forward-03
+  layer: Service BOM
+
+# Service BOM(保守部品表)— forward-03(ECO-003)で新設。
+# 概念と劣化イベント→影響分析の手順は method/s-bom-template.md(Loop6 実証)/ templates/53。
+# 価値は被覆でなく絞り込み: 劣化イベントを逆引きし、影響部品・再検査深さ・交換判断を最小に導く。
+# as_built_ref 注記: 本リポの ECO 系譜の As-Built は 60-*.md §6 に集約している(50 は forward-01/rev2 まで)。
+# 現用個体 = tag v0.4-forward-02(loops/forward-02/factory-eco2-01-opus)。
+
+service_bom:
+  items:
+    - id: SB-SQLITE-STORE-001
+      name: SQLite 永続化(調達部品+外部知識)
+      purpose: 調達パッケージの脆弱性/更新・SQLite 慣行の変化から永続化系の再検査を逆引きする
+      lifecycle_state: as-built
+      part_ref: E-SQLITE-STORE-001
+      classification: surface
+      external_deps:
+        - kbom_ref: K-SQLITE-001
+          version: v2   # ECO-003: Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3
+          change_signal: NuGet security advisory(NU1903)/ upstream release / SQLite CVE
+      acceptance_depth: L3
+      as_built_ref: v0.4-forward-02(factory-eco2-01-opus)
+      reinspect_on_change:
+        - { cp_ref: CP-PERSIST-RESTART-001, depth: L3, fixture: oracle/fixed-oracle.ps1(S19) }
+        - { cp_ref: CP-MIGRATION-001, depth: L3, fixture: oracle/migration-oracle.ps1 + fixtures/baseline-v02.db }
+        - note: 調達部品の交換時は上記に限らず全回帰(S01–S28+E01–E04+M01–M04)+V01 で再認証する(部品交換は挙動全域に触れ得る)
+      reverse_lookup_keys: [Microsoft.Data.Sqlite, SQLitePCLRaw, sqlite, library.db, LIBRARY_DB_PATH]
+      replacement_decision_vocabulary: 交換不要 / K-BOM更新のみ(再認証) / 部品交換+全再認証 / 再製造必要
+
+    - id: SB-HTTP-SURFACE-001
+      name: HTTP/JSON 契約表面
+      purpose: HTTP 慣行・JSON 表記規約の改版から API 契約の再検査を逆引きする
+      lifecycle_state: as-built
+      part_ref: E-HTTP-CONTRACT-001
+      classification: surface
+      external_deps:
+        - { kbom_ref: K-HTTP-REST-001, version: v1, change_signal: REST 慣行の改版(社内規約なし=低頻度) }
+        - { kbom_ref: K-JSON-001, version: v1, change_signal: 同上 }
+        - { kbom_ref: K-ERROR-SCHEMA-001, version: v1, change_signal: エラー封筒規約の改版 }
+      acceptance_depth: L3
+      as_built_ref: v0.4-forward-02(factory-eco2-01-opus)
+      reinspect_on_change:
+        - { cp_ref: CP-API-CONTRACT-001, depth: L3, fixture: oracle/fixed-oracle.ps1 }
+      reverse_lookup_keys: [error.code, invalid_request, not_found, camelCase]
+      replacement_decision_vocabulary: 交換不要 / K-BOM更新のみ(再認証) / 再製造必要
+
+    - id: SB-DATETIME-ID-001
+      name: 日時・ID ポリシー表面
+      purpose: ISO8601/UTC 慣行・ID 形式規約の改版から受理形の再検査を逆引きする
+      lifecycle_state: as-built
+      part_ref: E-DATETIME-POLICY-001
+      classification: surface
+      external_deps:
+        - { kbom_ref: K-UTC-ISO8601-001, version: v1, change_signal: 日時受理形の規約改版 }
+        - { kbom_ref: K-ID-001, version: v2, change_signal: ID 形式規約の改版(INV-5 は公開契約=改版は重い) }
+      acceptance_depth: L2
+      as_built_ref: v0.4-forward-02(factory-eco2-01-opus)
+      reinspect_on_change:
+        - { cp_ref: CP-API-DATETIME-001, depth: L3, fixture: oracle/fixed-oracle.ps1(S08-S10/S22) }
+      reverse_lookup_keys: [literal-Z, ISO8601, bk_, mb_, ln_]
+      replacement_decision_vocabulary: 交換不要 / K-BOM更新のみ(再認証) / 再製造必要
+
+# 劣化イベントの記録(発生時に追記)
+degradation_events:
+  - event_id: DEG-001
+    event: '調達部品 Microsoft.Data.Sqlite 9.0.0 の推移的依存 SQLitePCLRaw.lib.e_sqlite3 2.1.10 に High 深刻度アドバイザリ GHSA-2m69-gcr7-jv3q(同梱 SQLite の脆弱性)。影響範囲 <= 2.1.11(2.1 系に修正版なし・修正は 3.x 系のみ)'
+    detected_at: 2026-07-04
+    source_ref: 'forward-02 両工場の NU1903 申告(cheat-report)→ dotnet list package --vulnerable --include-transitive で設計者確定 → gh api /advisories/GHSA-2m69-gcr7-jv3q で範囲確定'
+    affected:
+      - SB-SQLITE-STORE-001   # 逆引き: 他 SB item は当該パッケージ非依存(再検査不要)
+    reinspection_result: ~    # ECO-003 適用後に記入
+    decision: '部品交換+全再認証(ECO-003): Microsoft.Data.Sqlite 9.0.0 → 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3 直接参照(α+γ。akira 裁定 2026-07-04 — 当初裁定 α 単独は scratch 検証で不成立と判明し再裁定=実装検証が裁定を確定する、の調達版)'

@@ -68,10 +68,10 @@ kbom:
     - id: K-SQLITE-001
       name: SQLite persistence conventions
       knowledge_kind: tool-grammar
-      version: 'Microsoft.Data.Sqlite 9.0.0'
+      version: 'v2: Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3(ECO-003。旧 v1 = 9.0.0)'
       source: Microsoft.Data.Sqlite docs / SQLite practice(事前抽出で WAL・トランザクション境界・接続管理に分岐と判明)
       managed_knowledge:
-        - パッケージは Microsoft.Data.Sqlite 9.0.0 のみ(EF Core / Dapper / ULID 等の追加パッケージは使わない)
+        - パッケージは Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3 のみ(32-mbom procurement が正。EF Core / Dapper / ULID 等の追加パッケージは使わない)
         - DB パスは環境変数 LIBRARY_DB_PATH(未設定時 ./library.db)。接続文字列は Data Source=<path>
         - 起動時に CREATE TABLE IF NOT EXISTS でスキーマ作成(内部スキーマは自由)
         - 書き込み操作(貸出・返却・登録)は判定と更新を 1 トランザクション内で行う(INV-1/INV-2 の原子性)
