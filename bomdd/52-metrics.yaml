@@ -136,6 +136,18 @@ exploratory_variance:                  # 合否非混在(分散の観測のみ)
     impact_prediction: "全 .cs diff ゼロ = 的中(diff は csproj 2 行のみ)"
     note: "DEG-001(GHSA-2m69-gcr7-jv3q High)→ Service BOM 逆引き(1/3 SB)→ 処置再裁定(α 単独不成立→α+γ)→ 交換 → 全再認証。処置語彙「部品交換+全再認証」の初データ。採用個体= v0.5。劣化検出の出所は forward-02 工場の NU1903 正直申告"
 
+  # --- forward-04(ECO-005 = 互換性が壊れる部品交換。再製造への昇格・fresh 1工場) ---
+  - loop: forward-04
+    factory: factory-eco5-01-sonnet(fresh。1体= 測定対象が昇格機構で工場分散は forward-01/02 で測定済みのため)
+    bom_rev: K-SQLITE v3+procurement 交換(tag forward-04-input)
+    raw_match: '28/28 + effectivity 4/4 + migration 4/4 + V01 1/1'
+    regression: 0
+    change_miss: 0
+    unnecessary_modification: 0
+    factory_cheats: 0   # forward 系列で初の cheat 0 — K-SQLITE-001 v3 が適応の裁量(型対応・パラメータ形式・PRAGMA 可用性)を吸収
+    impact_prediction: "全的中(diff = Store.cs 14行+csproj 3行のみ。Core/test/Program.cs diff ゼロ)"
+    note: "DEG-002(供給網離脱・シナリオ起票=組織裁定。非互換は実在)→ 逆引き(1/3 SB)→ 交換候補の scratch 検証= build 6 エラー(赤)→ 語彙第4項「再製造必要」初適用 → K/M 層のみ改訂(REQ/仕様/E-BOM/オラクル無改訂=挙動契約の部品非依存を実証)→ 部分再製造(1/3 unit)→ 全再認証。昇格の決定点は scratch に前倒し(決定的非互換では適用後の回帰赤は発生しない)。M01–M04= 旧部品が書いた実 DB の移行合格=データ互換性次元の初検査。治具副観測: V01 健全性照合が符号化事故を判定不能 fail として正しく検出(偽緑防止の実証)→ DOTNET_CLI_UI_LANGUAGE=en を治具内固定。採用個体= v0.6"
+
 process_metrics:
   g2_readers: 3(opus/sonnet/haiku)
   g2_ambiguity_findings: { opus: 17, sonnet: 13, haiku: 17, 共通指摘: 6 }

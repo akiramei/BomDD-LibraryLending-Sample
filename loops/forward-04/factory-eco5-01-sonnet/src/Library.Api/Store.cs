@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using System.Data.SQLite;
 
 namespace Library.Api;
 
@@ -13,7 +13,7 @@ public sealed class Store
 
     public Store(string dbPath)
     {
-        _connectionString = new SqliteConnectionStringBuilder
+        _connectionString = new SQLiteConnectionStringBuilder
         {
             DataSource = dbPath
         }.ToString();
@@ -24,9 +24,9 @@ public sealed class Store
             ? p
             : "./library.db";
 
-    private SqliteConnection Open()
+    private SQLiteConnection Open()
     {
-        var conn = new SqliteConnection(_connectionString);
+        var conn = new SQLiteConnection(_connectionString);
         conn.Open();
         return conn;
     }
@@ -78,7 +78,7 @@ public sealed class Store
     /// only (existing rows preserved; never DROP/CREATE). Existing members get member_type='standard'.
     /// A v0.2 DB reports user_version 0; the column add below brings it to version 1.
     /// </summary>
-    private static void Migrate(SqliteConnection conn)
+    private static void Migrate(SQLiteConnection conn)
     {
         long version;
         using (var get = conn.CreateCommand())
@@ -112,7 +112,7 @@ public sealed class Store
         tx.Commit();
     }
 
-    private static bool ColumnExists(SqliteConnection conn, SqliteTransaction tx, string table, string column)
+    private static bool ColumnExists(SQLiteConnection conn, SQLiteTransaction tx, string table, string column)
     {
         using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
@@ -217,7 +217,7 @@ public sealed class Store
     private const string LoanSelect =
         "SELECT id, book_id, member_id, loaned_at_utc, due_date_utc, returned_at_utc, fine_amount, status FROM loans";
 
-    private static LoanRow ReadLoan(SqliteDataReader r) => new(
+    private static LoanRow ReadLoan(SQLiteDataReader r) => new(
         r.GetString(0),
         r.GetString(1),
         r.GetString(2),

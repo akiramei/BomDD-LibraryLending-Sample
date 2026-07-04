@@ -7,7 +7,7 @@ bomdd:
 # 概念と劣化イベント→影響分析の手順は method/s-bom-template.md(Loop6 実証)/ templates/53。
 # 価値は被覆でなく絞り込み: 劣化イベントを逆引きし、影響部品・再検査深さ・交換判断を最小に導く。
 # as_built_ref 注記: 本リポの ECO 系譜の As-Built は 60-*.md §6 に集約している(50 は forward-01/rev2 まで)。
-# 現用個体 = tag v0.4-forward-02(loops/forward-02/factory-eco2-01-opus)。
+# 現用個体 = tag v0.6-forward-04(loops/forward-04/factory-eco5-01-sonnet。ECO-005 再製造個体)。
 
 service_bom:
   items:
@@ -19,18 +19,17 @@ service_bom:
       classification: surface
       external_deps:
         - kbom_ref: K-SQLITE-001
-          version: v2   # ECO-003: Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3
+          version: v3   # ECO-005: System.Data.SQLite.Core 1.0.119(SQLitePCLRaw 系列は DEG-002 で供給網退役)
           change_signal: NuGet security advisory(NU1903)/ upstream release / SQLite CVE
           watch: CI 常設(.github/workflows/vulnerability-watch.yml — V01 を As-Maintained へ毎日実行。赤 run = DEG 検出通知。2026-07-04 常設化)
-          watch_items:
-            - 'retirement_condition(32-mbom): Microsoft.Data.Sqlite が SQLitePCLRaw 3.x を自身の依存として参照したら bundle 直接参照を外す(V01 は緑のままなので手動確認 — upstream リリースノート)'
+          # 旧 watch_item(bundle 退役条件)は DEG-002 の供給網離脱で前提ごと退役(ECO-005)
       acceptance_depth: L3
-      as_built_ref: v0.4-forward-02(factory-eco2-01-opus)
+      as_built_ref: v0.6-forward-04(factory-eco5-01-sonnet)
       reinspect_on_change:
         - { cp_ref: CP-PERSIST-RESTART-001, depth: L3, fixture: oracle/fixed-oracle.ps1(S19) }
         - { cp_ref: CP-MIGRATION-001, depth: L3, fixture: oracle/migration-oracle.ps1 + fixtures/baseline-v02.db }
         - note: 調達部品の交換時は上記に限らず全回帰(S01–S28+E01–E04+M01–M04)+V01 で再認証する(部品交換は挙動全域に触れ得る)
-      reverse_lookup_keys: [Microsoft.Data.Sqlite, SQLitePCLRaw, sqlite, library.db, LIBRARY_DB_PATH]
+      reverse_lookup_keys: [System.Data.SQLite, sqlite, library.db, LIBRARY_DB_PATH]
       replacement_decision_vocabulary: 交換不要 / K-BOM更新のみ(再認証) / 部品交換+全再認証 / 再製造必要
 
     - id: SB-HTTP-SURFACE-001
@@ -74,8 +73,8 @@ degradation_events:
     source_ref: 'akira 委任裁定 2026-07-04(forward-04 起票)。文脈= DEG-001 の実 GHSA(SQLitePCLRaw.lib.e_sqlite3)+32-mbom の bundle 直接参照は退役条件付きの暫定調達'
     affected:
       - SB-SQLITE-STORE-001   # 逆引き: DEG-001 と同一部品(SQLitePCLRaw は E-SQLITE-STORE-001 の調達系列)。他 SB item は非依存
-    reinspection_result: ~    # 処置確定後に記入
-    decision: ~               # 処置裁定は scratch 事前検証(forward-03 工程)の後に確定 — ECO-005 order 参照
+    reinspection_result: '合格(2026-07-04): S01–S28 28/28+E01–E04 4/4+M01–M04 4/4(旧部品が書いた実 DB の移行=データ互換性次元の初検査)+V01 1/1。diff = Store.cs+csproj のみ(不要改変 0)。新個体 = v0.6-forward-04(factory-eco5-01-sonnet)'
+    decision: '再製造必要(ECO-005・語彙第4項の初適用): 交換候補 System.Data.SQLite.Core 1.0.119 は scratch 事前検証で build 6 エラー=「部品交換+全再認証」不成立 → fresh 工場 1 体(sonnet)で unit M-API-SQLITE-001 を部分再製造(K-SQLITE-001 v3)。昇格の決定点は scratch に前倒しされた(適用後の回帰赤は発生せず — 決定的非互換は scratch が先取りする)'
   - event_id: DEG-001
     event: '調達部品 Microsoft.Data.Sqlite 9.0.0 の推移的依存 SQLitePCLRaw.lib.e_sqlite3 2.1.10 に High 深刻度アドバイザリ GHSA-2m69-gcr7-jv3q(同梱 SQLite の脆弱性)。影響範囲 <= 2.1.11(2.1 系に修正版なし・修正は 3.x 系のみ)'
     detected_at: 2026-07-04

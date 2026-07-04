@@ -1,0 +1,193 @@
+{
+  "oracle": "fixed oracle S01-S28 (rev4/ECO-002)",
+  "results": [
+    {
+      "expected": "201 bk_* copies=2 avail=2",
+      "pass": true,
+      "id": "S01",
+      "actual": "201 id=bk_54a1104429c14693a1b7e94b2a034ec9 avail=2"
+    },
+    {
+      "expected": "201 mb_*",
+      "pass": true,
+      "id": "S02",
+      "actual": "201 id=mb_49c67c474d3f48b59551c1a0c5648a25"
+    },
+    {
+      "expected": "400/invalid_request",
+      "pass": true,
+      "id": "S03",
+      "actual": "400/invalid_request"
+    },
+    {
+      "expected": "404/not_found",
+      "pass": true,
+      "id": "S04",
+      "actual": "404/not_found"
+    },
+    {
+      "expected": "201 due=2026-02-14 active",
+      "pass": true,
+      "id": "S05",
+      "actual": "201 due=2026-02-14 status=active"
+    },
+    {
+      "expected": "2nd=201, 3rd=409/no_copies_available",
+      "pass": true,
+      "id": "S06",
+      "actual": "2nd=201 3rd=409/no_copies_available"
+    },
+    {
+      "expected": "3rd=201, 4th=409/loan_limit_exceeded",
+      "pass": true,
+      "id": "S07",
+      "actual": "1-3=201,201,201 4th=409/loan_limit_exceeded"
+    },
+    {
+      "expected": "400/invalid_request (+09:00)",
+      "pass": true,
+      "id": "S08",
+      "actual": "400/invalid_request"
+    },
+    {
+      "expected": "400/invalid_request (+00:00)",
+      "pass": true,
+      "id": "S09",
+      "actual": "400/invalid_request"
+    },
+    {
+      "expected": "201 (.123Z accepted)",
+      "pass": true,
+      "id": "S10",
+      "actual": "201"
+    },
+    {
+      "expected": "200 fine=0 (due-day 23:59:59Z)",
+      "pass": true,
+      "id": "S11",
+      "actual": "200 fine=0"
+    },
+    {
+      "expected": "200 fine=100 (due+1 00:00:00Z)",
+      "pass": true,
+      "id": "S12",
+      "actual": "200 fine=100"
+    },
+    {
+      "expected": "200 fine=300 (due+3)",
+      "pass": true,
+      "id": "S13",
+      "actual": "200 fine=300"
+    },
+    {
+      "expected": "409/already_returned",
+      "pass": true,
+      "id": "S14",
+      "actual": "409/already_returned"
+    },
+    {
+      "expected": "409/member_overdue_blocked (due+1)",
+      "pass": true,
+      "id": "S15",
+      "actual": "409/member_overdue_blocked"
+    },
+    {
+      "expected": "201 (due-day not blocked)",
+      "pass": true,
+      "id": "S16",
+      "actual": "201"
+    },
+    {
+      "expected": "400/invalid_request (instant past)",
+      "pass": true,
+      "id": "S17",
+      "actual": "400/invalid_request"
+    },
+    {
+      "expected": "order(oldest,id-ordinal) + shape",
+      "pass": true,
+      "id": "S18",
+      "actual": "count=3 order=True shape=True"
+    },
+    {
+      "expected": "prefix + 32 lowercase hex",
+      "pass": true,
+      "id": "S21",
+      "actual": "checked=3 bad="
+    },
+    {
+      "expected": "S05=2026-01-31T10:00:00Z / S10=2026-03-02T09:00:00Z (exact)",
+      "pass": true,
+      "id": "S22",
+      "actual": "S05=2026-01-31T10:00:00Z S10=2026-03-02T09:00:00Z"
+    },
+    {
+      "expected": "empty/whitespace ids and ?memberId= all 400/invalid_request",
+      "pass": true,
+      "id": "S23",
+      "actual": "bookId='' 400/invalid_request / memberId='   ' 400/invalid_request / ?memberId= 400/invalid_request"
+    },
+    {
+      "expected": "premium=201/premium, default=201/standard, gold=400",
+      "pass": true,
+      "id": "S24",
+      "actual": "prem=201/premium def=201/standard bad=400/invalid_request"
+    },
+    {
+      "expected": "1-5=201, 6th=409/loan_limit_exceeded",
+      "pass": true,
+      "id": "S25",
+      "actual": "1-5ok=True 6th=409/loan_limit_exceeded"
+    },
+    {
+      "expected": "premium 1/31->2026-02-21, 12/25->2027-01-15 / standard対照 1/31->2026-02-14",
+      "pass": true,
+      "id": "S26",
+      "actual": "premA=201/2026-02-21 premB=201/2027-01-15 std=201/2026-02-14"
+    },
+    {
+      "expected": "premium due-day(+21) 23:59:59Z=0 / due+1 00:00:00Z=100",
+      "pass": true,
+      "id": "S27",
+      "actual": "t1=200/fine=0 t2=200/fine=100"
+    },
+    {
+      "expected": "due-day(+21)=201 / due+1=409 member_overdue_blocked",
+      "pass": true,
+      "id": "S28",
+      "actual": "u1=201 u2=201 u3=409/member_overdue_blocked"
+    },
+    {
+      "expected": "restart-survives (avail/loans/status equal)",
+      "pass": true,
+      "id": "S19",
+      "actual": "avail 0->0 loans 3->3 ids-equal=True"
+    },
+    {
+      "expected": "median<300ms over 50 seq POST",
+      "pass": true,
+      "id": "S20",
+      "actual": "median=6.2ms n=50"
+    }
+  ],
+  "total": 28,
+  "pass": 28,
+  "probes": {
+    "latencyMs": 6.2,
+    "errorMessages": [
+      "title is required and must be 1..200 chars",
+      "resource not found"
+    ],
+    "ids": [
+      "bk_54a1104429c14693a1b7e94b2a034ec9",
+      "mb_49c67c474d3f48b59551c1a0c5648a25",
+      "ln_5e53465ebe2543d39eec22d15f6e8dac"
+    ],
+    "extraFields": {},
+    "datetimeEcho": [
+      "2026-01-31T10:00:00Z",
+      "2026-03-02T09:00:00Z"
+    ]
+  },
+  "factory": "loops/forward-04/factory-eco5-01-sonnet"
+}
