@@ -68,10 +68,13 @@ kbom:
     - id: K-SQLITE-001
       name: SQLite persistence conventions
       knowledge_kind: tool-grammar
-      version: 'v2: Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3(ECO-003。旧 v1 = 9.0.0)'
-      source: Microsoft.Data.Sqlite docs / SQLite practice(事前抽出で WAL・トランザクション境界・接続管理に分岐と判明)
+      version: 'v3: System.Data.SQLite.Core 1.0.119(ECO-005 = DEG-002 供給網離脱・再製造。旧 v2 = Microsoft.Data.Sqlite 10.0.9+bundle 3.0.3 / v1 = 9.0.0)'
+      source: System.Data.SQLite docs / SQLite practice(事前抽出で WAL・トランザクション境界・接続管理に分岐と判明)
       managed_knowledge:
-        - パッケージは Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3 のみ(32-mbom procurement が正。EF Core / Dapper / ULID 等の追加パッケージは使わない)
+        - パッケージは System.Data.SQLite.Core 1.0.119 のみ(32-mbom procurement が正。EF Core / Dapper / ULID 等の追加パッケージは使わない)
+        - '名前空間は System.Data.SQLite・型は SQLite 前置(SQLiteConnection / SQLiteCommand / SQLiteTransaction / SQLiteDataReader / SQLiteConnectionStringBuilder)— 旧部品 Microsoft.Data.Sqlite の Sqlite 前置と大文字小文字が異なる'
+        - '名前付きパラメータの接頭辞は $・@・: のいずれも受理される(SQLite 本体仕様。既存の $name 形は変更不要)'
+        - '複文 CommandText(セミコロン区切りの複数文)・PRAGMA user_version / table_info は本部品でも同様に使える(SQLite 本体機能)'
         - DB パスは環境変数 LIBRARY_DB_PATH(未設定時 ./library.db)。接続文字列は Data Source=<path>
         - 起動時に CREATE TABLE IF NOT EXISTS でスキーマ作成(内部スキーマは自由)
         - 書き込み操作(貸出・返却・登録)は判定と更新を 1 トランザクション内で行う(INV-1/INV-2 の原子性)

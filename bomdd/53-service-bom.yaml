@@ -68,6 +68,14 @@ service_bom:
 
 # 劣化イベントの記録(発生時に追記)
 degradation_events:
+  - event_id: DEG-002
+    event: '調達方針裁定(シナリオ起票): SQLitePCLRaw 系列からの供給網離脱 — DEG-001(GHSA-2m69-gcr7-jv3q)の再発文脈を受け、同系列(bundle_e_sqlite3 直接参照を含む)への依存を退役し、SQLitePCLRaw 非依存の代替調達部品 System.Data.SQLite.Core への交換を指示。**イベント種別= 組織裁定(調達方針変更)であり外部世界の新事実ではない**(forward-04 実験の宣言 — 「互換性が壊れる部品交換=回帰赤→再製造昇格」の未観測次元を検証するためのシナリオ。ただし非互換性そのものは実在の部品差で、演出しない)'
+    detected_at: 2026-07-04
+    source_ref: 'akira 委任裁定 2026-07-04(forward-04 起票)。文脈= DEG-001 の実 GHSA(SQLitePCLRaw.lib.e_sqlite3)+32-mbom の bundle 直接参照は退役条件付きの暫定調達'
+    affected:
+      - SB-SQLITE-STORE-001   # 逆引き: DEG-001 と同一部品(SQLitePCLRaw は E-SQLITE-STORE-001 の調達系列)。他 SB item は非依存
+    reinspection_result: ~    # 処置確定後に記入
+    decision: ~               # 処置裁定は scratch 事前検証(forward-03 工程)の後に確定 — ECO-005 order 参照
   - event_id: DEG-001
     event: '調達部品 Microsoft.Data.Sqlite 9.0.0 の推移的依存 SQLitePCLRaw.lib.e_sqlite3 2.1.10 に High 深刻度アドバイザリ GHSA-2m69-gcr7-jv3q(同梱 SQLite の脆弱性)。影響範囲 <= 2.1.11(2.1 系に修正版なし・修正は 3.x 系のみ)'
     detected_at: 2026-07-04

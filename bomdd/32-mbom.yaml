@@ -77,16 +77,13 @@ mbom:
         - M-API-SQLITE-001
 
 procurement:
-  - package: Microsoft.Data.Sqlite
-    version: 10.0.9   # ECO-003(2026-07-04): 9.0.0 → 10.0.9(DEG-001 = GHSA-2m69-gcr7-jv3q への処置。「10.x への更新は ECO で扱う」の履行)
-    rationale: 軽量・単一ファイル・BCL外で最小の永続化。実現性確認済(2026-06-10)/ 10.0.9 は scratch 事前検証+全再認証済み(ECO-003)
-    license: MIT
+  - package: System.Data.SQLite.Core
+    version: 1.0.119   # ECO-005(2026-07-04): DEG-002 供給網離脱裁定による部品交換(再製造)。SQLitePCLRaw 非依存・脆弱性クリーン事前確認済み
+    rationale: 'SQLitePCLRaw 系列からの供給網離脱(53 DEG-002)。sqlite.org 系 ADO.NET プロバイダ= 独立供給網。交換のみでは不成立(scratch 実測: build 6 エラー)のため再製造 ECO-005 で適応(60-change-order-eco-005.md)'
+    license: Public Domain
     substitutable: false
-  - package: SQLitePCLRaw.bundle_e_sqlite3
-    version: 3.0.3    # ECO-003(2026-07-04): 推移的依存の上書き(Microsoft.Data.Sqlite 10.x は脆弱な 2.1.11 を参照するため)
-    rationale: 'GHSA-2m69-gcr7-jv3q(<= 2.1.11 全て・2.1 系修正なし)の解消は 3.x 系のみ。退役条件: Microsoft.Data.Sqlite が 3.x 系を自身の依存として参照した時点で本直接参照を外す(推移的解決へ戻す)'
-    license: Apache-2.0
-    substitutable: false
+  # 旧調達(ECO-005 で退役): Microsoft.Data.Sqlite 10.0.9 + SQLitePCLRaw.bundle_e_sqlite3 3.0.3
+  #   (bundle の退役条件「Microsoft.Data.Sqlite が 3.x を参照したら外す」は供給網離脱により前提ごと退役 — 53 watch_items から除去)
   # これ以外の NuGet パッケージは使わない(必要だと判断したらずる報告)
 
 fmea:
